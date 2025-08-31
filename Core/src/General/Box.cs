@@ -1,0 +1,7 @@
+namespace Markwardt;
+
+public class Box<T>
+    where T : struct
+{
+    public T Value { get; set; }
+}
