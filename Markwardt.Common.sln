@@ -9,11 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sandbox", "Sandbox\Sandbox.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Adapters", "Adapters", "{5D2B2BFF-C64D-44D7-9AF5-06D33BCE8320}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Godot", "Adapters\Godot\Adapters.Godot.csproj", "{CA2E78AA-F4FA-40FA-9952-C27F7DBA9B86}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Godot", "Adapters\Godot\Godot.csproj", "{CA2E78AA-F4FA-40FA-9952-C27F7DBA9B86}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteNetLib", "Adapters\LiteNetLib\Adapters.LiteNetLib.csproj", "{A9A548DE-AE62-4A7E-82E6-5A90FC36A800}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteNetLib", "Adapters\LiteNetLib\LiteNetLib.csproj", "{A9A548DE-AE62-4A7E-82E6-5A90FC36A800}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Steamworks", "Adapters\Steamworks\Adapters.Steamworks.csproj", "{6A3684A3-2BE8-4F0C-B51E-2D70A932159E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Steamworks", "Adapters\Steamworks\Steamworks.csproj", "{6A3684A3-2BE8-4F0C-B51E-2D70A932159E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

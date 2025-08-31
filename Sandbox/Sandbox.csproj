@@ -5,6 +5,7 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <AssemblyName>Markwardt.Common.Sandbox</AssemblyName>
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

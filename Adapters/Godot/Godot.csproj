@@ -5,6 +5,7 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <AssemblyName>Markwardt.Common.Godot</AssemblyName>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
