@@ -26,15 +26,6 @@ public interface IObservableCollection : INotifyCollectionChanged
 
         bool ContainsKey(object? key);
     }
-
-    void Do()
-    {
-        ISourceDictionary<string, string> f = null!;
-        if (f.TryGetValue("g", out string? value))
-        {
-            
-        }
-    }
 }
 
 public interface IObservableCollection<T> : IObservableCollection, IReadOnlyCollection<T>
@@ -44,29 +35,82 @@ public interface IObservableCollection<T> : IObservableCollection, IReadOnlyColl
 
 public interface IObservableCollection<T, TKey> : IObservableCollection<T>, IReadOnlyKeyLookup<T, TKey>;
 
-public class ObservableCollection<T> : IObservableCollection<T>
+public abstract class ObservableCollection<T> : IObservableCollection<T>, IObservableCollection.IAccessor
 {
+    public ObservableCollection()
+        => editor.Changes.Subscribe(x => HandleCollectionChanged(x, (action, items) => CollectionChanged?.Invoke(this, new(action, items))));
+
     private readonly ItemChangeEditor<T> editor = new();
 
+    protected abstract ICollection<T> Items { get; }
+
+    Type IObservableCollection.IAccessor.ItemType => typeof(T);
+    IEnumerable<object?> IObservableCollection.IAccessor.Items => Items.Cast<object?>();
+    IObservable<IEnumerable<ItemChange<object?>>> IObservableCollection.IAccessor.Changes => Changes.Select(x => x.Select(y => y.Cast<object?>()));
+
     public IObservable<IEnumerable<ItemChange<T>>> Changes => editor.Changes;
-
-    public IObservableCollection.IAccessor Accessor => throw new NotImplementedException();
-
-    public int Count => throw new NotImplementedException();
+    public IObservableCollection.IAccessor Accessor => this;
+    public int Count => Items.Count;
 
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
 
     public IEnumerator<T> GetEnumerator()
-    {
-        throw new NotImplementedException();
-    }
+        => Items.GetEnumerator();
 
     public IDisposable StartEdit()
         => editor.StartEdit();
 
     IEnumerator IEnumerable.GetEnumerator()
+        => GetEnumerator();
+
+    bool IObservableCollection.IAccessor.Contains(object? item)
+        => Contains((T)item!);
+
+    protected virtual bool Contains(T item)
+        => Items.Contains(item);
+
+    private void HandleCollectionChanged(IEnumerable<ItemChange<T>> changes, Action<NotifyCollectionChangedAction, IList> invoke)
     {
-        return GetEnumerator();
+        ItemChangeKind? kind = null;
+        List<T>? pending = null;
+
+        void Commit()
+        {
+            if (kind is null)
+            {
+                throw new InvalidOperationException();
+            }
+
+            if (pending is not null)
+            {
+                invoke(kind == ItemChangeKind.Add ? NotifyCollectionChangedAction.Add : NotifyCollectionChangedAction.Remove, pending);
+                pending = null;
+            }
+        }
+
+        foreach (ItemChange<T> change in changes)
+        {
+            if (change.Kind != kind)
+            {
+                Commit();
+                kind = change.Kind;
+                pending = [];
+            }
+
+            switch (change.Kind)
+            {
+                case ItemChangeKind.Add:
+                    pending?.Add(change.Item);
+                    break;
+                case ItemChangeKind.Remove:
+                    pending?.Add(change.Item);
+                    break;
+                default:
+                    throw new NotSupportedException(change.Kind.ToString());
+            }
+        }
+
+        Commit();
     }
 
     private sealed class ItemChangeEditor<T2>
