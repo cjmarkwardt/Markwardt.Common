@@ -8,6 +8,9 @@ public static class ObservableExtensions
     public static IObservable WithoutResult<T>(this IObservable<T> source)
         => new GeneralObservable(source.Select(_ => false));
 
+    public static IObservable<TChained> Chain<T, TChained>(this IObservable<T> source, Func<T, IObservable<TChained>> chain)
+        => source.Select(x => chain(x)).Merge();
+
     public static IObservable TriggerOnce(this IObservable source)
         => new TriggerOnceObservable(source);
 

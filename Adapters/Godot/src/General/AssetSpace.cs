@@ -58,7 +58,7 @@ public class AssetSpace<T> : BaseDisposable, IAssetSpace<T>
     private readonly Subject<T> loaded = new();
     public IObservable<T> Loaded => loaded;
 
-    private readonly Subject unloaded = new();
+    private readonly GeneralSubject unloaded = new();
     public IObservable Unloaded => unloaded;
 
     public async void Load(IAsset<T> asset, bool cache = false)

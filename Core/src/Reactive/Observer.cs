@@ -1,13 +1,13 @@
 namespace Markwardt;
 
-public interface IObserver : IObserver<bool> { }
-
-public abstract class Observer : IObserver
+public class Observer<T>(Action<T>? onNext = null, Action? onCompleted = null, Action<Exception>? onError = null) : IObserver<T>
 {
-    public abstract void OnCompleted();
-    public abstract void OnError(Exception error);
-    public abstract void OnNext();
+    public void OnNext(T value)
+        => onNext?.Invoke(value);
 
-    void IObserver<bool>.OnNext(bool value)
-        => OnNext();
+    public void OnCompleted()
+        => onCompleted?.Invoke();
+
+    public void OnError(Exception error)
+        => onError?.Invoke(error);
 }
