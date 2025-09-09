@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-public interface IReactiveAttachable<T>
+public interface ISourceAttachable<T>
 {
     void Attach(IObservable<T> source);
     void Detach();

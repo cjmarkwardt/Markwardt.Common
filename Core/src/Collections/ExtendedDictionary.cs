@@ -29,8 +29,11 @@ public class ExtendedDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IRead
         }
     }
 
-    public ExtendedDictionary(DictionaryComparer<TKey, TValue>? sorter = null)
+    public ExtendedDictionary(DictionaryComparer<TKey, TValue> sorter)
         : this([], sorter) { }
+
+    public ExtendedDictionary()
+        : this([], null) { }
 
     private readonly IDictionary<Maybe<TKey>, TValue> dictionary;
     private readonly ICollection<TKey> keys;

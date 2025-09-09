@@ -18,8 +18,9 @@ public interface IObservableCollection : INotifyCollectionChanged
         bool Contains(object? item);
     }
 
-    interface IKeyedAccessor : IAccessor
+    interface IPairAccessor : IAccessor
     {
+        new Type ItemType { get; }
         Type KeyType { get; }
         new IEnumerable<KeyValuePair<object?, object?>>? Items { get; }
         new IObservable<IEnumerable<ItemChange<KeyValuePair<object?, object?>>>> Changes { get; }
@@ -40,22 +41,23 @@ public abstract class ObservableCollection<T> : IObservableCollection<T>, IObser
     public ObservableCollection()
         => editor.Changes.Subscribe(x => HandleCollectionChanged(x, (action, items) => CollectionChanged?.Invoke(this, new(action, items))));
 
-    private readonly ItemChangeEditor<T> editor = new();
+    private readonly ItemChangeEditor editor = new();
 
-    protected abstract ICollection<T> Items { get; }
+    protected abstract IReadOnlyCollection<T> Collection { get; }
 
     Type IObservableCollection.IAccessor.ItemType => typeof(T);
-    IEnumerable<object?> IObservableCollection.IAccessor.Items => Items.Cast<object?>();
+    IEnumerable<object?> IObservableCollection.IAccessor.Items => Collection.Cast<object?>();
     IObservable<IEnumerable<ItemChange<object?>>> IObservableCollection.IAccessor.Changes => Changes.Select(x => x.Select(y => y.Cast<object?>()));
 
-    public IObservable<IEnumerable<ItemChange<T>>> Changes => editor.Changes;
     public IObservableCollection.IAccessor Accessor => this;
-    public int Count => Items.Count;
+
+    public IObservable<IEnumerable<ItemChange<T>>> Changes => editor.Changes;
+    public int Count => Collection.Count;
 
     public event NotifyCollectionChangedEventHandler? CollectionChanged;
 
     public IEnumerator<T> GetEnumerator()
-        => Items.GetEnumerator();
+        => Collection.GetEnumerator();
 
     public IDisposable StartEdit()
         => editor.StartEdit();
@@ -67,7 +69,22 @@ public abstract class ObservableCollection<T> : IObservableCollection<T>, IObser
         => Contains((T)item!);
 
     protected virtual bool Contains(T item)
-        => Items.Contains(item);
+        => Collection.Contains(item);
+
+    protected virtual void OnCommitAdd(T item) { }
+    protected virtual void OnCommitRemove(T item) { }
+
+    protected void CommitAdd(T item)
+    {
+        OnCommitAdd(item);
+        editor.Add(item);
+    }
+
+    protected void CommitRemove(T item)
+    {
+        OnCommitRemove(item);
+        editor.Remove(item);
+    }
 
     private void HandleCollectionChanged(IEnumerable<ItemChange<T>> changes, Action<NotifyCollectionChangedAction, IList> invoke)
     {
@@ -113,14 +130,14 @@ public abstract class ObservableCollection<T> : IObservableCollection<T>, IObser
         Commit();
     }
 
-    private sealed class ItemChangeEditor<T2>
+    private sealed class ItemChangeEditor
     {
-        private readonly Subject<IEnumerable<ItemChange<T2>>> changes = new();
+        private readonly Subject<IEnumerable<ItemChange<T>>> changes = new();
 
         private int level;
-        private List<ItemChange<T2>> pendingChanges = [];
+        private List<ItemChange<T>> pendingChanges = [];
 
-        public IObservable<IEnumerable<ItemChange<T2>>> Changes => changes;
+        public IObservable<IEnumerable<ItemChange<T>>> Changes => changes;
 
         public IDisposable StartEdit()
         {
@@ -128,21 +145,11 @@ public abstract class ObservableCollection<T> : IObservableCollection<T>, IObser
             return new Edit(this);
         }
 
-        public void Add(T2 item)
+        public void Add(T item)
             => pendingChanges.Add(new(ItemChangeKind.Add, item));
 
-        public void Remove(T2 item)
+        public void Remove(T item)
             => pendingChanges.Add(new(ItemChangeKind.Remove, item));
-
-        public void Commit()
-        {
-            if (pendingChanges.Count > 0)
-            {
-                IEnumerable<ItemChange<T2>> cache = pendingChanges;
-                pendingChanges = [];
-                changes.OnNext(cache);
-            }
-        }
 
         private void EndEdit()
         {
@@ -150,13 +157,13 @@ public abstract class ObservableCollection<T> : IObservableCollection<T>, IObser
 
             if (level == 0 && pendingChanges.Count > 0)
             {
-                IEnumerable<ItemChange<T2>> cache = pendingChanges;
+                IEnumerable<ItemChange<T>> cache = pendingChanges;
                 pendingChanges = [];
                 changes.OnNext(cache);
             }
         }
 
-        private sealed class Edit(ItemChangeEditor<T2> editor) : IDisposable
+        private sealed class Edit(ItemChangeEditor editor) : IDisposable
         {
             private bool isDisposed;
 
@@ -171,11 +178,3 @@ public abstract class ObservableCollection<T> : IObservableCollection<T>, IObser
         }
     }
 }
-
-public interface IObservableSet<T> : IObservableCollection<T>, IReadOnlySet<T>;
-
-public interface IObservableSet<T, TKey> : IObservableCollection<T, TKey>, IObservableSet<T>;
-
-public interface IObservableDictionary<T, TKey> : IObservableCollection<KeyValuePair<TKey, T>, TKey>, IReadOnlyDictionary<TKey, T>;
-
-public interface ISourceDictionary<T, TKey> : IObservableDictionary<T, TKey>, IDictionary<TKey, T>;
