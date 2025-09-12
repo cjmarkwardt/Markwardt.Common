@@ -12,13 +12,24 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
         {
             if (value.DataProperties.TryGetValue(property.Name, out object? propertyValue))
             {
-                if (propertyValue is IDataCollection collection)
+                if (propertyValue is IObservableDictionary dictionary)
                 {
-                    CollectCollection(context, collection);
+                    foreach (KeyValuePair<object?, object?> item in dictionary.Items)
+                    {
+                        context.Collect(item.Key);
+                        context.Collect(item.Value);
+                    }
                 }
-                else
+                else if (propertyValue is IObservableCollection collection)
                 {
-                    context.Collect(propertyValue);
+                    foreach (object? item in collection.Items)
+                    {
+                        context.Collect(item);
+                    }
+                }
+                else if (propertyValue is IObservableValue observableValue)
+                {
+                    context.Collect(observableValue.Value);
                 }
             }
         }
@@ -32,9 +43,25 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
             {
                 await writer.WriteInteger(property.Index);
 
-                if (propertyValue is IDataCollection collection)
+                if (propertyValue is IObservableDictionary dictionary)
                 {
-                    await SerializeCollection(context, writer, collection);
+                    await writer.WriteSequence();
+
+                    foreach ((object? key, object? item) in dictionary.Items)
+                    {
+                        if (collection.KeyType is not null)
+                        {
+                            await context.Serialize(writer, key);
+                        }
+
+                        await context.Serialize(writer, item);
+                    }
+
+                    await writer.WriteStop();
+                }
+                else if (propertyValue is IObservableValue observableValue)
+                {
+                    await context.Serialize(writer, observableValue.Value);
                 }
                 else
                 {
@@ -77,16 +104,7 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
         }
     }
 
-    private void CollectCollection(IDataSerializationContext context, IDataCollection collection)
-    {
-        foreach ((object? key, object? item) in collection.Items)
-        {
-            context.Collect(key);
-            context.Collect(item);
-        }
-    }
-
-    private async ValueTask SerializeCollection(IDataSerializationContext context, IDataWriter writer, IDataCollection collection)
+    private async ValueTask SerializeCollection(IDataSerializationContext context, IDataWriter writer, )
     {
         await writer.WriteSequence();
 

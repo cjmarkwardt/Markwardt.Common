@@ -2,25 +2,20 @@ namespace Markwardt;
 
 public interface ISourceCollection : IObservableCollection
 {
-    new IAccessor Accessor { get; }
-
-    new interface IAccessor : IObservableCollection.IAccessor
-    {
-        void Add(object? item);
-        void Remove(object? item);
-        void Clear();
-    }
-
-    new interface IPairAccessor : IObservableCollection.IPairAccessor
-    {
-        void AddPair(object? key, object? item);
-        void RemoveKey(object? key);
-    }
+    IDisposable StartEdit();
+    void Add(object? item);
+    void Remove(object? item);
+    void Clear();
 }
 
-public interface ISourceCollection<T> : ISourceCollection, IObservableCollection<T>, ICollection<T>, ISourceAttachable<IEnumerable<ItemChange<T>>>;
+public interface ISourceCollection<T> : IObservableCollection<T>, ICollection<T>, ISourceAttachable<IEnumerable<ItemChange<T>>>
+{
+    new int Count => ((ICollection<T>)this).Count;
 
-public abstract class SourceCollection<TCollection, T> : ObservableCollection<T>, ISourceCollection<T>, ISourceCollection.IAccessor
+    IDisposable StartEdit();
+}
+
+public abstract class SourceCollection<TCollection, T> : ObservableCollection<T>, ISourceCollection<T>, ISourceCollection
     where TCollection : ICollection<T>, new()
 {
     public SourceCollection()
@@ -31,8 +26,6 @@ public abstract class SourceCollection<TCollection, T> : ObservableCollection<T>
     protected TCollection Items { get; private set; } = new();
 
     protected override IReadOnlyCollection<T> Collection { get; }
-
-    public new ISourceCollection.IAccessor Accessor => this;
 
     bool ICollection<T>.IsReadOnly => false;
 
@@ -83,9 +76,9 @@ public abstract class SourceCollection<TCollection, T> : ObservableCollection<T>
     public void Detach()
         => subscriber.Unsubscribe();
 
-    void ISourceCollection.IAccessor.Add(object? item)
+    void ISourceCollection.Add(object? item)
         => Add((T)item!);
 
-    void ISourceCollection.IAccessor.Remove(object? item)
+    void ISourceCollection.Remove(object? item)
         => Remove((T)item!);
 }

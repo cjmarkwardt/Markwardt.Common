@@ -1,8 +1,27 @@
 namespace Markwardt;
 
-public interface ISourceDictionary<T, TKey> : IObservableDictionary<T, TKey>, IDictionary<TKey, T>;
+public interface ISourceDictionary : ISourceCollection, IObservableDictionary
+{
+    void SetKey(object? key, object? value);
+    void RemoveKey(object? key);
+}
 
-public class SourceDictionary<T, TKey> : SourceCollection<ExtendedDictionary<TKey, T>, KeyValuePair<TKey, T>>, ISourceDictionary<T, TKey>, ISourceCollection.IPairAccessor
+public interface ISourceDictionary<T, TKey> : ISourceCollection<KeyValuePair<TKey, T>>, IObservableDictionary<T, TKey>, IDictionary<TKey, T>
+{
+    new T this[TKey key]
+    {
+        get => ((IDictionary<TKey, T>)this)[key];
+        set => ((IDictionary<TKey, T>)this)[key] = value;
+    }
+
+    new bool ContainsKey(TKey key)
+        => ((IDictionary<TKey, T>)this).ContainsKey(key);
+
+    new bool TryGetValue(TKey key, [MaybeNullWhen(false)] out T value)
+        => ((IDictionary<TKey, T>)this).TryGetValue(key, out value);
+}
+
+public class SourceDictionary<T, TKey> : SourceCollection<ExtendedDictionary<TKey, T>, KeyValuePair<TKey, T>>, ISourceDictionary<T, TKey>, ISourceDictionary
 {
     public T this[TKey key]
     {
@@ -22,11 +41,11 @@ public class SourceDictionary<T, TKey> : SourceCollection<ExtendedDictionary<TKe
     ICollection<TKey> IDictionary<TKey, T>.Keys => Items.Keys;
     ICollection<T> IDictionary<TKey, T>.Values => Items.Values;
 
-    Type IObservableCollection.IPairAccessor.ItemType => typeof(TKey);
-    Type IObservableCollection.IPairAccessor.KeyType => typeof(T);
+    Type IObservableDictionary.KeyType => typeof(TKey);
+    Type IObservableDictionary.ValueType => typeof(T);
 
-    IEnumerable<KeyValuePair<object?, object?>>? IObservableCollection.IPairAccessor.Items => this.Select(x => new KeyValuePair<object?, object?>(x.Key, x.Value));
-    IObservable<IEnumerable<ItemChange<KeyValuePair<object?, object?>>>> IObservableCollection.IPairAccessor.Changes => Changes.Select(x => x.Select(change => change.Convert(y => new KeyValuePair<object?, object?>(y.Key, y.Value))));
+    IEnumerable<KeyValuePair<object?, object?>>? IObservableDictionary.Items => this.Select(x => new KeyValuePair<object?, object?>(x.Key, x.Value));
+    IObservable<IEnumerable<ItemChange<KeyValuePair<object?, object?>>>> IObservableDictionary.Changes => Changes.Select(x => x.Select(change => change.Convert(y => new KeyValuePair<object?, object?>(y.Key, y.Value))));
 
     public bool ContainsKey(TKey key)
         => Items.ContainsKey(key);
@@ -67,13 +86,26 @@ public class SourceDictionary<T, TKey> : SourceCollection<ExtendedDictionary<TKe
             return false;
         }
     }
+    void ISourceDictionary.SetKey(object? key, object? value)
+        => this[(TKey)key!] = (T)value!;
 
-    void ISourceCollection.IPairAccessor.AddPair(object? key, object? item)
-        => Add((TKey)key!, (T)item!);
-
-    void ISourceCollection.IPairAccessor.RemoveKey(object? key)
+    void ISourceDictionary.RemoveKey(object? key)
         => Remove((TKey)key!);
 
-    bool IObservableCollection.IPairAccessor.ContainsKey(object? key)
+    bool IObservableDictionary.ContainsKey(object? key)
         => ContainsKey((TKey)key!);
+
+    bool IObservableDictionary.TryLookupKey(object? key, out object? value)
+    {
+        if (TryGetValue((TKey)key!, out T? lookupValue))
+        {
+            value = lookupValue;
+            return true;
+        }
+        else
+        {
+            value = default;
+            return false;
+        }
+    }
 }

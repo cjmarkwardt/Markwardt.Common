@@ -1,16 +1,39 @@
 namespace Markwardt;
 
-public interface ISourceValue : IObservableValue
+public static class ObservableTarget
 {
-    new IAccessor Accessor { get; }
-
-    new interface IAccessor : IObservableValue.IAccessor
+    private static readonly Dictionary<Type, Type> implementations = new()
     {
-        void Set(object? value);
+        { typeof(IObservableValue<>), typeof(SourceValue<>) },
+        { typeof(IObservableCollection<>), typeof(SourceList<>) },
+        { typeof(IObservableList<>), typeof(SourceList<>) },
+        { typeof(IObservableSet<>), typeof(SourceSet<>) },
+        { typeof(IObservableSet<,>), typeof(SourceSet<,>) },
+        { typeof(IObservableDictionary<,>), typeof(SourceDictionary<,>) },
+        { typeof(ISourceValue<>), typeof(SourceValue<>) },
+        { typeof(ISourceCollection<>), typeof(SourceList<>) },
+        { typeof(ISourceList<>), typeof(SourceList<>) },
+        { typeof(ISourceSet<>), typeof(SourceSet<>) },
+        { typeof(ISourceSet<,>), typeof(SourceSet<,>) },
+        { typeof(ISourceDictionary<,>), typeof(SourceDictionary<,>) }
+    };
+
+    public static Type? GetImplementation(Type type)
+        => type.IsGenericType && implementations.TryGetValue(type.GetGenericTypeDefinition(), out Type? implementation) ? implementation.MakeGenericType(type.GetGenericArguments()) : null;
+
+    public static Func<object> GetCreator(Type type)
+    {
+        Type implementation = GetImplementation(type).NotNull($"Type {type} is not an observable target");
+        return () => Activator.CreateInstance(implementation).NotNull();
     }
 }
 
-public interface ISourceValue<T> : ISourceValue, IObservableValue<T>, ISourceAttachable<T>
+public interface ISourceValue : IObservableValue
+{
+    new object? Value { get;set; }
+}
+
+public interface ISourceValue<T> : IObservableValue<T>, ISourceAttachable<T>
 {
     new T Value { get; set; }
 
@@ -34,9 +57,12 @@ public static class SourceValueExtensions
 
     public static void Connect<T>(this ISourceValue<T> source, IObservableValue<T> target)
         => source.Set(target.Value, target);
+
+    public static ISourceValue<T> ToSourceValue<T>(this IObservable<T> source, T value)
+        => new SourceValue<T>(value, source);
 }
 
-public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue.IAccessor
+public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
 {
     public SourceValue(T value, IObservable<T>? changes = null)
     {
@@ -62,7 +88,7 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue.
         }
     }
 
-    public new ISourceValue.IAccessor Accessor => throw new NotImplementedException();
+    object? ISourceValue.Value { get => Value; set => Value = (T)value!; }
 
     public void Alter(T value)
         => Set(value);
@@ -76,6 +102,9 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue.
     public override IDisposable Subscribe(IObserver<T> observer)
         => changes.Subscribe(observer);
 
+    public override string ToString()
+        => value?.ToString() ?? string.Empty;
+
     protected override T GetValue()
         => Value;
 
@@ -87,7 +116,4 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue.
             changes.OnNext(value);
         }
     }
-
-    void ISourceValue.IAccessor.Set(object? value)
-        => Set((T)value!);
 }
