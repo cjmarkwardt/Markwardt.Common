@@ -1,7 +1,5 @@
 namespace Markwardt;
 
-public class EndOfDataException() : Exception("No more data to read.");
-
 public interface IDataReader
 {
     ValueTask<object?> Read();
@@ -9,24 +7,27 @@ public interface IDataReader
 
 public static class DataReaderExtensions
 {
-    public static async ValueTask<T> Read<T>(this IDataReader reader, bool isNullable = false)
-    {
-        object? value = await reader.Read();
-        if (value is null && !isNullable)
-        {
-            throw new InvalidOperationException();
-        }
-
-        return (T)value!;
-    }
+    public static async ValueTask<T> Read<T>(this IDataReader reader)
+        => (T)(await reader.Read())!;
 
     public static async ValueTask ReadAllToString(this IDataReader reader, Stream output)
     {
         using StreamWriter writer = new(output, leaveOpen: true);
 
-        int level = 0;
+        bool isFirstLine = true;
         async ValueTask Write(string message)
-            => await writer.WriteLineAsync($"{new string('\t', level)}{message}");
+        {
+            if (isFirstLine)
+            {
+                isFirstLine = false;
+            }
+            else
+            {
+                await writer.WriteLineAsync();
+            }
+
+            await writer.WriteAsync(message);
+        }
 
         while (true)
         {
@@ -55,30 +56,17 @@ public static class DataReaderExtensions
                     await Write(preciseNumber.ToString());
                     break;
                 case string text:
-                    await Write(text);
+                    await Write($"\"{text}\"");
                     break;
                 case DataObjectSignal obj:
                     await Write($"T:{obj.TypeId}{(obj.Reference is not null ? $" R:{obj.Reference}" : string.Empty)}");
-                    level++;
                     break;
                 case DataReferenceSignal reference:
                     await Write($"R:{reference.Reference}");
                     break;
-                case DataSequenceSignal:
-                    await Write($"...");
-                    level++;
-                    break;
                 case DataStopSignal:
-                    level--;
-
-                    if (level == -1)
-                    {
-                        return;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    await Write($"stop");
+                    break;
                 default:
                     throw new InvalidOperationException($"Unknown data type: {value.GetType()}");
             }
@@ -104,12 +92,9 @@ public class DataReader(IDataPartReader reader) : IDataReader
         {
             return (DataSignal)code.Value switch
             {
-                DataSignal.Object => await ReadObject(false, false),
-                DataSignal.TypedObject => await ReadObject(true, false),
-                DataSignal.ReferencedObject => await ReadObject(false, true),
-                DataSignal.TypedReferencedObject => await ReadObject(true, true),
+                DataSignal.Object => await ReadObject(false),
+                DataSignal.ReferencedObject => await ReadObject(true),
                 DataSignal.Reference => new DataReferenceSignal((int)await reader.Read<BigInteger>()),
-                DataSignal.Sequence => new DataSequenceSignal(),
                 DataSignal.Stop => new DataStopSignal(),
                 _ => throw new NotSupportedException($"Signal {code.Value} unsupported.")
             };
@@ -120,6 +105,6 @@ public class DataReader(IDataPartReader reader) : IDataReader
         }
     }
 
-    private async ValueTask<DataObjectSignal> ReadObject(bool isTyped, bool isReferenced)
+    private async ValueTask<DataObjectSignal> ReadObject(bool isReferenced)
         => new((int)await reader.Read<BigInteger>(), isReferenced ? (int)await reader.Read<BigInteger>() : null);
 }

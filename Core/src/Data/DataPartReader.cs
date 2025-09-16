@@ -7,16 +7,8 @@ public interface IDataPartReader
 
 public static class DataPartReaderExtensions
 {
-    public static async ValueTask<T> Read<T>(this IDataPartReader reader, bool isNullable = false)
-    {
-        object? value = await reader.Read();
-        if (value is null && !isNullable)
-        {
-            throw new InvalidOperationException();
-        }
-
-        return (T)value!;
-    }
+    public static async ValueTask<T> Read<T>(this IDataPartReader reader)
+        => (T)(await reader.Read())!;
 }
 
 public class DataPartReader(IBlockReader reader) : IDataPartReader

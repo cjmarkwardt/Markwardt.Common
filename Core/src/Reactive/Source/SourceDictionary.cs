@@ -28,9 +28,14 @@ public class SourceDictionary<T, TKey> : SourceCollection<ExtendedDictionary<TKe
         get => Items[key];
         set
         {
-            T oldValue = Items[key];
+            Maybe<T> oldValue = Items.MaybeGetValue(key);
             Items[key] = value;
-            CommitRemove(new(key, oldValue));
+
+            if (oldValue.HasValue)
+            {
+                CommitRemove(new(key, oldValue.Value));
+            }
+            
             CommitAdd(new(key, value));
         }
     }
@@ -44,7 +49,7 @@ public class SourceDictionary<T, TKey> : SourceCollection<ExtendedDictionary<TKe
     Type IObservableDictionary.KeyType => typeof(TKey);
     Type IObservableDictionary.ValueType => typeof(T);
 
-    IEnumerable<KeyValuePair<object?, object?>>? IObservableDictionary.Items => this.Select(x => new KeyValuePair<object?, object?>(x.Key, x.Value));
+    IEnumerable<KeyValuePair<object?, object?>> IObservableDictionary.Items => this.Select(x => new KeyValuePair<object?, object?>(x.Key, x.Value));
     IObservable<IEnumerable<ItemChange<KeyValuePair<object?, object?>>>> IObservableDictionary.Changes => Changes.Select(x => x.Select(change => change.Convert(y => new KeyValuePair<object?, object?>(y.Key, y.Value))));
 
     public bool ContainsKey(TKey key)

@@ -9,7 +9,6 @@ public interface IDataWriter
     ValueTask WriteText(string? value);
     ValueTask WriteObject(BigInteger? type, BigInteger? reference);
     ValueTask WriteReference(BigInteger value);
-    ValueTask WriteSequence();
     ValueTask WriteStop();
 }
 
@@ -126,15 +125,7 @@ public class DataWriter(IDataPartWriter writer) : IDataWriter
     public async ValueTask WriteObject(BigInteger? type, BigInteger? reference)
     {
         DataSignal signal;
-        if (type is not null && reference is not null)
-        {
-            signal = DataSignal.TypedReferencedObject;
-        }
-        else if (type is not null)
-        {
-            signal = DataSignal.TypedObject;
-        }
-        else if (reference is not null)
+        if (reference is not null)
         {
             signal = DataSignal.ReferencedObject;
         }
@@ -161,9 +152,6 @@ public class DataWriter(IDataPartWriter writer) : IDataWriter
         await WriteSignal(DataSignal.Reference);
         await WriteInteger(value);
     }
-
-    public async ValueTask WriteSequence()
-        => await WriteSignal(DataSignal.Sequence);
 
     public async ValueTask WriteStop()
         => await WriteSignal(DataSignal.Stop);

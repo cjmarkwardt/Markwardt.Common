@@ -1,33 +1,5 @@
 namespace Markwardt;
 
-public static class ObservableTarget
-{
-    private static readonly Dictionary<Type, Type> implementations = new()
-    {
-        { typeof(IObservableValue<>), typeof(SourceValue<>) },
-        { typeof(IObservableCollection<>), typeof(SourceList<>) },
-        { typeof(IObservableList<>), typeof(SourceList<>) },
-        { typeof(IObservableSet<>), typeof(SourceSet<>) },
-        { typeof(IObservableSet<,>), typeof(SourceSet<,>) },
-        { typeof(IObservableDictionary<,>), typeof(SourceDictionary<,>) },
-        { typeof(ISourceValue<>), typeof(SourceValue<>) },
-        { typeof(ISourceCollection<>), typeof(SourceList<>) },
-        { typeof(ISourceList<>), typeof(SourceList<>) },
-        { typeof(ISourceSet<>), typeof(SourceSet<>) },
-        { typeof(ISourceSet<,>), typeof(SourceSet<,>) },
-        { typeof(ISourceDictionary<,>), typeof(SourceDictionary<,>) }
-    };
-
-    public static Type? GetImplementation(Type type)
-        => type.IsGenericType && implementations.TryGetValue(type.GetGenericTypeDefinition(), out Type? implementation) ? implementation.MakeGenericType(type.GetGenericArguments()) : null;
-
-    public static Func<object> GetCreator(Type type)
-    {
-        Type implementation = GetImplementation(type).NotNull($"Type {type} is not an observable target");
-        return () => Activator.CreateInstance(implementation).NotNull();
-    }
-}
-
 public interface ISourceValue : IObservableValue
 {
     new object? Value { get;set; }
@@ -64,6 +36,9 @@ public static class SourceValueExtensions
 
 public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
 {
+    private SourceValue()
+        => value = default!;
+
     public SourceValue(T value, IObservable<T>? changes = null)
     {
         this.value = value;

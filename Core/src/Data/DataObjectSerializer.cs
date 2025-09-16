@@ -12,24 +12,24 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
         {
             if (value.DataProperties.TryGetValue(property.Name, out object? propertyValue))
             {
-                if (propertyValue is IObservableDictionary dictionary)
+                if (propertyValue is IObservableDictionary targetDictionary)
                 {
-                    foreach (KeyValuePair<object?, object?> item in dictionary.Items)
+                    foreach (KeyValuePair<object?, object?> item in targetDictionary.Items)
                     {
                         context.Collect(item.Key);
                         context.Collect(item.Value);
                     }
                 }
-                else if (propertyValue is IObservableCollection collection)
+                else if (propertyValue is IObservableCollection targetCollection)
                 {
-                    foreach (object? item in collection.Items)
+                    foreach (object? item in targetCollection.Items)
                     {
                         context.Collect(item);
                     }
                 }
-                else if (propertyValue is IObservableValue observableValue)
+                else if (propertyValue is IObservableValue targetValue)
                 {
-                    context.Collect(observableValue.Value);
+                    context.Collect(targetValue.Value);
                 }
             }
         }
@@ -41,31 +41,35 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
         {
             if (value.DataProperties.TryGetValue(property.Name, out object? propertyValue))
             {
+                if (IsEmpty(propertyValue))
+                {
+                    continue;
+                }
+
                 await writer.WriteInteger(property.Index);
 
-                if (propertyValue is IObservableDictionary dictionary)
+                if (propertyValue is IObservableDictionary targetDictionary)
                 {
-                    await writer.WriteSequence();
-
-                    foreach ((object? key, object? item) in dictionary.Items)
+                    foreach ((object? key, object? item) in targetDictionary.Items)
                     {
-                        if (collection.KeyType is not null)
-                        {
-                            await context.Serialize(writer, key);
-                        }
-
+                        await context.Serialize(writer, key);
                         await context.Serialize(writer, item);
                     }
 
                     await writer.WriteStop();
                 }
-                else if (propertyValue is IObservableValue observableValue)
+                else if (propertyValue is IObservableCollection targetCollection)
                 {
-                    await context.Serialize(writer, observableValue.Value);
+                    foreach (object? item in targetCollection.Items)
+                    {
+                        await context.Serialize(writer, item);
+                    }
+
+                    await writer.WriteStop();
                 }
-                else
+                else if (propertyValue is IObservableValue targetValue)
                 {
-                    await context.Serialize(writer, propertyValue);
+                    await context.Serialize(writer, targetValue.Value);
                 }
             }
         }
@@ -82,16 +86,44 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
             if (value is BigInteger index)
             {
                 DataObjectProperty property = layout.IndexedProperties[(int)index];
-                if (property.CollectionType is not null)
+                value = obj.DataProperties[property.Name];
+                if (property.IsDictionary)
                 {
-                    value = await DeserializeCollection(context, reader, property.CollectionType);
+                    ISourceDictionary targetDictionary = (ISourceDictionary)value;
+                    while (true)
+                    {
+                        object? key = await context.Deserialize(reader);
+                        if (key is DataStopSignal)
+                        {
+                            break;
+                        }
+
+                        targetDictionary.SetKey(Convert(key, targetDictionary.KeyType), Convert(await context.Deserialize(reader), targetDictionary.ValueType));
+                    }
+                }
+                else if (property.IsCollection)
+                {
+                    ISourceCollection targetCollection = (ISourceCollection)value;
+                    while (true)
+                    {
+                        object? item = await context.Deserialize(reader);
+                        if (item is DataStopSignal)
+                        {
+                            break;
+                        }
+
+                        targetCollection.Add(Convert(item, targetCollection.ItemType));
+                    }
+                }
+                else if (property.IsValue)
+                {
+                    ISourceValue targetValue = (ISourceValue)value;
+                    targetValue.Value = Convert(await context.Deserialize(reader), targetValue.ValueType);
                 }
                 else
                 {
-                    value = await context.Deserialize(reader);
+                    throw new InvalidOperationException();
                 }
-
-                obj.DataProperties[property.Name] = Convert(value, property.Type).NotNull();
             }
             else if (value is DataStopSignal)
             {
@@ -102,54 +134,6 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
                 throw new InvalidOperationException("Expected property index or stop signal");
             }
         }
-    }
-
-    private async ValueTask SerializeCollection(IDataSerializationContext context, IDataWriter writer, )
-    {
-        await writer.WriteSequence();
-
-        foreach ((object? key, object? item) in collection.Items)
-        {
-            if (collection.KeyType is not null)
-            {
-                await context.Serialize(writer, key);
-            }
-
-            await context.Serialize(writer, item);
-        }
-
-        await writer.WriteStop();
-    }
-
-    private async ValueTask<IDataCollection> DeserializeCollection(IDataDeserializationContext context, IDataReader reader, DataCollectionType collectionType)
-    {
-        await reader.Read<DataSequenceSignal>();
-
-        IDataCollection collection = collectionType.Create();
-        while (true)
-        {
-            object? key = null;
-
-            object? item = await context.Deserialize(reader);
-            if (item is DataStopSignal)
-            {
-                break;
-            }
-
-            if (collection.KeyType is not null)
-            {
-                key = Convert(item, collection.KeyType);
-                item = Convert(await context.Deserialize(reader), collection.ItemType);
-            }
-            else
-            {
-                item = Convert(item, collection.ItemType);
-            }
-
-            collection.Inject(key, item);
-        }
-
-        return collection;
     }
 
     private object? Convert(object? value, Type targetType)
@@ -201,9 +185,12 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
                 return integer;
             }
         }
-        
+
         throw new InvalidOperationException($"Cannot convert {value.GetType()} to {targetType}");
     }
+
+    private bool IsEmpty(object? value)
+        => (value is IObservableValue targetValue && targetValue.Value is null) || (value is IObservableCollection targetCollection && targetCollection.Count == 0);
 
     private sealed class Property(PropertyInfo source, int index)
     {
