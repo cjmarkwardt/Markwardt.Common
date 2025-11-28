@@ -8,22 +8,22 @@ public interface IDataSerializerSource
 
 public static class DataSerializerSourceExtensions
 {
-    public static async ValueTask Serialize(this IDataSerializerSource serializers, IDataWriter writer, object? value)
+    public static async ValueTask Serialize(this IDataSerializerSource serializers, IDataWriter writer, object? value, CancellationToken cancellation = default)
     {
         if (value is null)
         {
-            await writer.WriteNull();
+            await writer.WriteNull(cancellation);
         }
         else
         {
             DataSerializationContext context = new(serializers);
             context.Collect(value);
-            await context.Serialize(writer, value);
+            await context.Serialize(writer, value, cancellation);
         }
     }
 
-    public static async ValueTask<object?> Deserialize(this IDataSerializerSource serializers, IDataReader reader)
-        => await new DataDeserializationContext(serializers).Deserialize(reader);
+    public static async ValueTask<object?> Deserialize(this IDataSerializerSource serializers, IDataReader reader, CancellationToken cancellation = default)
+        => await new DataDeserializationContext(serializers).Deserialize(reader, cancellation);
 }
 
 public class DataSerializerSource(IEnumerable<KeyValuePair<Type, IDataSerializer>> serializers) : IDataSerializerSource

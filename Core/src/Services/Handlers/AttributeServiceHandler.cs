@@ -1,13 +1,13 @@
 namespace Markwardt;
 
-public class AttributeServiceHandler : IServiceHandler
+public class AttributeServiceHandler : IServiceSource
 {
-    public IServiceSource? TryCreateSource(Type tag)
+    public IService? TryGetService(Type tag)
     {
-        ServiceResolutionAttribute? attribute = tag.GetCustomAttribute<ServiceResolutionAttribute>();
+        ServiceAttribute? attribute = tag.GetCustomAttribute<ServiceAttribute>();
         if (attribute is not null)
         {
-            return attribute.GetSource(tag);
+            return attribute.GetService(tag);
         }
 
         return null;

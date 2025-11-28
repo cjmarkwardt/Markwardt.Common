@@ -27,7 +27,7 @@ public partial class SpriteMaterial : ShaderMaterial
         image.SetPixel(1, 0, Colors.Red);
         image.SetPixel(2, 0, Colors.Red);
         image.SetPixel(3, 0, Colors.Red);
-        ((ImageTexture)map).GetImage().SavePng($"D:\\Projects2\\Hammerlance.Oyster\\imagetest.png");
+        ((ImageTexture)map).GetImage().SavePng($"D:\\Projects2\\Markwardt.Hazelnut\\imagetest.png");
         SetShaderParameter("Colors", map);
     }
     //    => SetShaderParameter("Colors", map);

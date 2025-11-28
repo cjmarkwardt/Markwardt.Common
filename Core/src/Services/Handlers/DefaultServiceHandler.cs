@@ -1,7 +1,7 @@
 namespace Markwardt;
 
-public class DefaultServiceHandler : IServiceHandler
+public class DefaultServiceHandler : IServiceSource
 {
-    public IServiceSource? TryCreateSource(Type tag)
-        => ServiceSource.FromImplementation(tag);
+    public IService? TryGetService(Type tag)
+        => Service.Constructor(tag);
 }

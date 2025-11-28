@@ -1,166 +1,147 @@
 namespace Markwardt;
 
-public interface IMemoryWriter<T>
+public class MemoryWriter<T>
 {
-    void Write(int length, MemoryEditor<T> editor);
-    void Write(ReadOnlySpan<T> source);
+    public int Position { get; set; }
+
+    public void Write(Span<T> span, T value)
+        => span[Position++] = value;
+
+    public void Write(Span<T> span, int length, MemoryEditor<T> editor)
+    {
+        editor(span.Slice(Position, length));
+        Position += length;
+    }
 }
 
-public enum VariableIntegerOption
+public static class MemoryWriterr
 {
-    Zero = 0,
-    One = 0b1,
-    Two = 0b10,
-    Three = 0b11
-}
+    public static void WriteBoolean(this MemoryWriter<byte> writer, Span<byte> span, bool value)
+        => writer.Write(span, (byte)(value ? 1 : 0));
 
-public static class MemoryWriter
-{
-    public static void Write<T>(this Span<T> span, int index, out int newIndex, T value)
+    public static void WriteSigned(this MemoryWriter<byte> writer, Span<byte> span, sbyte value)
+        => writer.Write(span, (byte)value);
+
+    public static void WriteShort(this MemoryWriter<byte> writer, Span<byte> span, short value)
+        => writer.Write(span, 2, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteUnsignedShort(this MemoryWriter<byte> writer, Span<byte> span, ushort value)
+        => writer.Write(span, 2, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteInteger(this MemoryWriter<byte> writer, Span<byte> span, int value)
+        => writer.Write(span, 4, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteUnsignedInteger(this MemoryWriter<byte> writer, Span<byte> span, uint value)
+        => writer.Write(span, 4, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteLong(this MemoryWriter<byte> writer, Span<byte> span, long value)
+        => writer.Write(span, 8, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteUnsignedLong(this MemoryWriter<byte> writer, Span<byte> span, ulong value)
+        => writer.Write(span, 8, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteFloat(this MemoryWriter<byte> writer, Span<byte> span, float value)
+        => writer.Write(span, 4, data => BitConverter.TryWriteBytes(data, value));
+
+    public static void WriteDouble(this MemoryWriter<byte> writer, Span<byte> span, double value)
+        => writer.Write(span, 8, data => BitConverter.TryWriteBytes(data, value));
+
+    /*
+        Short 1 (-2:13)
+        Medium 2:16 ()
+
+        XXX Options
+        X IsDirect
+        1111 IsExtended
+
+    */
+
+    public static int GetVariableIntegerLength(this MemoryWriter<byte> writer, BigInteger value)
     {
-        newIndex = index + 1;
-        span[index] = value;
-    }
-
-    public static void Write<T>(this Span<T> span, int index, out int newIndex, int length, MemoryEditor<T> editor)
-    {
-        newIndex = index + length;
-        editor(span.Slice(index, length));
-    }
-
-    public static void WriteBoolean(this Span<byte> span, int index, out int newIndex, bool value)
-        => span.Write(index, out newIndex, (byte)(value ? 1 : 0));
-
-    public static void WriteSigned(this Span<byte> span, int index, out int newIndex, sbyte value)
-        => span.Write(index, out newIndex, (byte)value);
-
-    public static void WriteShort(this Span<byte> span, int index, out int newIndex, short value)
-        => span.Write(index, out newIndex, 2, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteUnsignedShort(this Span<byte> span, int index, out int newIndex, ushort value)
-        => span.Write(index, out newIndex, 2, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteInteger(this Span<byte> span, int index, out int newIndex, int value)
-        => span.Write(index, out newIndex, 4, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteUnsignedInteger(this Span<byte> span, int index, out int newIndex, uint value)
-        => span.Write(index, out newIndex, 4, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteLong(this Span<byte> span, int index, out int newIndex, long value)
-        => span.Write(index, out newIndex, 8, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteUnsignedLong(this Span<byte> span, int index, out int newIndex, ulong value)
-        => span.Write(index, out newIndex, 8, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteFloat(this Span<byte> span, int index, out int newIndex, float value)
-        => span.Write(index, out newIndex, 4, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteDouble(this Span<byte> span, int index, out int newIndex, double value)
-        => span.Write(index, out newIndex, 8, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteVariableInteger(this Span<byte> span, int index, out int newIndex, BigInteger value, VariableIntegerOption option = VariableIntegerOption.Zero, bool isUnsigned = false)
-    {
-        newIndex = index;
-
-        if (value >= 0 && value <= 31)
+        if (value >= -2 && value <= 13)
         {
-            span.Write(newIndex, out newIndex, (byte)((int)value | ((int)option << 6)));
+            return 1;
         }
         else
         {
             int length = value.GetByteCount();
-            int prefix = 0b100000 | ((int)option << 6);
-            if (length >= 31)
+            if (length < 16)
             {
-                if (length > 286)
-                {
-                    throw new InvalidOperationException("Length cannot be larger than 286");
-                }
-
-                prefix |= 0b11111;
-                span.Write(newIndex, out newIndex, (byte)(length - 31));
+                return 1 + length;
             }
-
-            span.Write(newIndex, out newIndex, (byte)prefix);
-            span.Write(newIndex, out newIndex, length, data => value.TryWriteBytes(data, out _, isUnsigned));
+            else if (length < 16 + 255)
+            {
+                return 2 + length;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Length cannot be larger than {16 + 255}");
+            }
         }
     }
 
-    public static void WriteString(this Span<byte> span, int index, out int newIndex, string value, VariableIntegerOption option = VariableIntegerOption.Zero, Encoding? encoding = null)
+    public static void WriteVariableInteger(this MemoryWriter<byte> writer, Span<byte> span, BigInteger value, int embeddedValue = 0)
     {
-        newIndex = index;
-
-        span.WriteVariableInteger(newIndex, out newIndex, value.Length, option, true);
-        encoding ??= Encoding.UTF8;
-        span.Write(newIndex, out newIndex, encoding.GetByteCount(value), data => encoding.TryGetBytes(value, data, out _));
-    }
-}
-
-public static class MemoryWriterExtensions
-{
-    public static void Write<T>(this IMemoryWriter<T> writer, T value)
-        => writer.Write(1, data => data[0] = value);
-
-    public static void WriteBoolean(this IMemoryWriter<byte> writer, bool value)
-        => writer.Write((byte)(value ? 1 : 0));
-
-    public static void WriteSigned(this IMemoryWriter<byte> writer, sbyte value)
-        => writer.Write((byte)value);
-
-    public static void WriteShort(this IMemoryWriter<byte> writer, short value)
-        => writer.Write(2, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteUnsignedShort(this IMemoryWriter<byte> writer, ushort value)
-        => writer.Write(2, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteInteger(this IMemoryWriter<byte> writer, int value)
-        => writer.Write(4, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteUnsignedInteger(this IMemoryWriter<byte> writer, uint value)
-        => writer.Write(4, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteLong(this IMemoryWriter<byte> writer, long value)
-        => writer.Write(8, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteUnsignedLong(this IMemoryWriter<byte> writer, ulong value)
-        => writer.Write(8, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteFloat(this IMemoryWriter<byte> writer, float value)
-        => writer.Write(4, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteDouble(this IMemoryWriter<byte> writer, double value)
-        => writer.Write(8, data => BitConverter.TryWriteBytes(data, value));
-
-    public static void WriteVariableInteger(this IMemoryWriter<byte> writer, BigInteger value, VariableIntegerOption option = VariableIntegerOption.Zero, bool isUnsigned = false)
-    {
-        if (value >= 0 && value <= 31)
+        if (embeddedValue < 0 || embeddedValue > 7)
         {
-            writer.Write((byte)((int)value | ((int)option << 6)));
+            throw new ArgumentOutOfRangeException(nameof(embeddedValue), "Embedded value must be between 0 and 7");
+        }
+
+        if (value >= -2 && value <= 13)
+        {
+            writer.Write(span, (byte)((int)(value + 2) | (embeddedValue << 5)));
         }
         else
         {
             int length = value.GetByteCount();
-            int prefix = 0b100000 | ((int)option << 6);
-            if (length >= 31)
+            int prefix = 0b10000 | (embeddedValue << 5);
+            int? extendedLength = null;
+            if (length < 16)
             {
-                if (length > 286)
-                {
-                    throw new InvalidOperationException("Length cannot be larger than 286");
-                }
-
-                prefix |= 0b11111;
-                writer.Write((byte)(length - 31));
+                prefix |= length - 1;
+            }
+            else if (length < 16 + 255)
+            {
+                prefix |= 0b1111;
+                extendedLength = length - 16;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Length cannot be larger than {16 + 255}");
             }
 
-            writer.Write((byte)prefix);
-            writer.Write(length, data => value.TryWriteBytes(data, out _, isUnsigned));
+            writer.Write(span, (byte)prefix);
+
+            if (extendedLength is not null)
+            {
+                writer.Write(span, (byte)extendedLength.Value);
+            }
+
+            writer.Write(span, length, data => value.TryWriteBytes(data, out _));
         }
     }
 
-    public static void WriteString(this IMemoryWriter<byte> writer, string value, VariableIntegerOption option = VariableIntegerOption.Zero, Encoding? encoding = null)
+    public static int GetBlockLength(this MemoryWriter<byte> writer, ReadOnlySpan<byte> data)
+        => writer.GetVariableIntegerLength(data.Length) + data.Length;
+
+    public static void WriteBlock(this MemoryWriter<byte> writer, Span<byte> span, ReadOnlyMemory<byte> data, int embeddedValue = 0)
     {
-        writer.WriteVariableInteger(value.Length, option, true);
+        writer.WriteVariableInteger(span, data.Length, embeddedValue);
+        writer.Write(span, data.Length, span => data.Span.CopyTo(span));
+    }
+
+    public static int GetStringLength(this MemoryWriter<byte> writer, string value, Encoding? encoding = null)
+    {
         encoding ??= Encoding.UTF8;
-        writer.Write(encoding.GetByteCount(value), data => encoding.TryGetBytes(value, data, out _));
+        int byteCount = encoding.GetByteCount(value);
+        return writer.GetVariableIntegerLength(byteCount) + byteCount;
+    }
+
+    public static void WriteString(this MemoryWriter<byte> writer, Span<byte> span, string value, int embeddedValue = 0, Encoding? encoding = null)
+    {
+        encoding ??= Encoding.UTF8;
+        int byteCount = encoding.GetByteCount(value);
+        writer.WriteVariableInteger(span, byteCount, embeddedValue);
+        writer.Write(span, byteCount, data => encoding.TryGetBytes(value, data, out _));
     }
 }

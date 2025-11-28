@@ -2,6 +2,12 @@ namespace Markwardt;
 
 public static class TaskExtensions
 {
+    public static async ValueTask<T> WithCancellation<T>(this TaskCompletionSource<T> task, CancellationToken cancellation)
+    {
+        using CancellationTokenRegistration registration = cancellation.Register(() => task.TrySetCanceled(cancellation));
+        return await task.Task;
+    }
+
     public static async ValueTask<T> WithTimeout<T>(this Task<T> task, TimeSpan? timeout, CancellationToken cancellation = default)
     {
         if (timeout is not null && await Task.WhenAny(task, Task.Delay(timeout.Value, cancellation)) != task)

@@ -2,23 +2,14 @@ namespace Markwardt;
 
 public static class TimeSpanExtensions
 {
-    public static async ValueTask<Failable> Delay(this TimeSpan? time, CancellationToken cancellation = default)
+    public static async ValueTask Delay(this TimeSpan? time, CancellationToken cancellation = default)
     {
-        try
+        if (time is not null)
         {
-            if (time is not null)
-            {
-                await Task.Delay(time.Value, cancellation);
-            }
-
-            return Failable.Success();
-        }
-        catch (OperationCanceledException exception)
-        {
-            return exception;
+            await time.Value.Delay(cancellation);
         }
     }
 
-    public static async ValueTask<Failable> Delay(this TimeSpan time, CancellationToken cancellation = default)
-        => await ((TimeSpan?)time).Delay(cancellation);
+    public static async ValueTask Delay(this TimeSpan time, CancellationToken cancellation = default)
+        => await Task.Delay(time, cancellation);
 }

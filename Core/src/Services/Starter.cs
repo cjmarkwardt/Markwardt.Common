@@ -2,5 +2,5 @@ namespace Markwardt;
 
 public interface IStarter
 {
-    ValueTask Start();
+    ValueTask Start(CancellationToken cancellation = default);
 }

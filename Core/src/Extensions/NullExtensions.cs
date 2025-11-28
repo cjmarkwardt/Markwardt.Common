@@ -31,4 +31,16 @@ public static class NullExtensions
             return true;
         }
     }
+
+    public static bool IsNullable(this PropertyInfo property)
+        => new NullabilityInfoContext().Create(property).ReadState is NullabilityState.Nullable;
+
+    public static bool IsNullable(this EventInfo @event)
+        => new NullabilityInfoContext().Create(@event).ReadState is NullabilityState.Nullable;
+
+    public static bool IsNullable(this FieldInfo field)
+        => new NullabilityInfoContext().Create(field).ReadState is NullabilityState.Nullable;
+
+    public static bool IsNullable(this ParameterInfo parameter)
+        => new NullabilityInfoContext().Create(parameter).ReadState is NullabilityState.Nullable;
 }

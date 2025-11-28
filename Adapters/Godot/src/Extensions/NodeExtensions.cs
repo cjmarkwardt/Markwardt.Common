@@ -5,6 +5,12 @@ public static class NodeExtensions
     public static void AddChildDeferred(this Node node, Node child, bool forceReadableName = true)
         => node.CallDeferred("add_child", child, forceReadableName);
 
+    public static async ValueTask AddChildNextFrame(this Node node, Node child, bool forceReadableName = true)
+    {
+        node.CallDeferred("add_child", child, forceReadableName);
+        await node.ToSignal(node.GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
     public static void RemoveChildDeferred(this Node node, Node child)
         => node.CallDeferred("remove_child", child);
 

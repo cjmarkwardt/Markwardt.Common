@@ -2,16 +2,16 @@ namespace Markwardt;
 
 public interface IBlockWriter
 {
-    ValueTask Write(ReadOnlyMemory<byte> source);
+    ValueTask Write(ReadOnlyMemory<byte> source, CancellationToken cancellation = default);
 }
 
 public static class BlockWriterExtensions
 {
-    public static async ValueTask Write(this IBlockWriter writer, int length, Action<Memory<byte>> write, int? maximumBufferLength = null)
+    public static async ValueTask Write(this IBlockWriter writer, int length, Action<Memory<byte>> write, int? maximumBufferLength = null, CancellationToken cancellation = default)
         => await ArrayPool<byte>.Shared.UseBuffer(length, async buffer =>
         {
             write(buffer);
-            await writer.Write(buffer);
+            await writer.Write(buffer, cancellation);
         }, maximumBufferLength ?? 64);
 }
 
@@ -19,13 +19,13 @@ public class BlockWriter(Stream stream) : IBlockWriter
 {
     private readonly Stream stream = stream;
 
-    public async ValueTask Write(ReadOnlyMemory<byte> source)
+    public async ValueTask Write(ReadOnlyMemory<byte> source, CancellationToken cancellation = default)
     {
         if (source.IsEmpty)
         {
             return;
         }
 
-        await stream.WriteAsync(source);
+        await stream.WriteAsync(source, cancellation);
     }
 }

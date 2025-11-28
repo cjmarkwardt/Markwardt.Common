@@ -2,13 +2,13 @@ namespace Markwardt;
 
 public interface IDataReader
 {
-    ValueTask<object?> Read();
+    ValueTask<object?> Read(CancellationToken cancellation = default);
 }
 
 public static class DataReaderExtensions
 {
-    public static async ValueTask<T> Read<T>(this IDataReader reader)
-        => (T)(await reader.Read())!;
+    public static async ValueTask<T> Read<T>(this IDataReader reader, CancellationToken cancellation = default)
+        => (T)(await reader.Read(cancellation))!;
 
     public static async ValueTask ReadAllToString(this IDataReader reader, Stream output)
     {
@@ -85,16 +85,16 @@ public static class DataReaderExtensions
 
 public class DataReader(IDataPartReader reader) : IDataReader
 {
-    public async ValueTask<object?> Read()
+    public async ValueTask<object?> Read(CancellationToken cancellation = default)
     {
-        object? value = await reader.Read();
+        object? value = await reader.Read(cancellation);
         if (value is DataCode code)
         {
             return (DataSignal)code.Value switch
             {
-                DataSignal.Object => await ReadObject(false),
-                DataSignal.ReferencedObject => await ReadObject(true),
-                DataSignal.Reference => new DataReferenceSignal((int)await reader.Read<BigInteger>()),
+                DataSignal.Object => await ReadObject(false, cancellation),
+                DataSignal.ReferencedObject => await ReadObject(true, cancellation),
+                DataSignal.Reference => new DataReferenceSignal((int)await reader.Read<BigInteger>(cancellation)),
                 DataSignal.Stop => new DataStopSignal(),
                 _ => throw new NotSupportedException($"Signal {code.Value} unsupported.")
             };
@@ -105,6 +105,6 @@ public class DataReader(IDataPartReader reader) : IDataReader
         }
     }
 
-    private async ValueTask<DataObjectSignal> ReadObject(bool isReferenced)
-        => new((int)await reader.Read<BigInteger>(), isReferenced ? (int)await reader.Read<BigInteger>() : null);
+    private async ValueTask<DataObjectSignal> ReadObject(bool isReferenced, CancellationToken cancellation = default)
+        => new((int)await reader.Read<BigInteger>(cancellation), isReferenced ? (int)await reader.Read<BigInteger>(cancellation) : null);
 }

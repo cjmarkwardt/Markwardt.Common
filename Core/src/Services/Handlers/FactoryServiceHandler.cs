@@ -1,12 +1,12 @@
 namespace Markwardt;
 
-public class FactoryServiceHandler : IServiceHandler
+public class FactoryServiceHandler : IServiceSource
 {
-    public IServiceSource? TryCreateSource(Type tag)
+    public IService? TryGetService(Type tag)
     {
         if (tag.IsDelegate())
         {
-            return ServiceSource.FromFactory(tag);
+            return Service.Factory(tag);
         }
 
         return null;

@@ -1,12 +1,12 @@
 namespace Markwardt;
 
-public class CompositeServiceHandler(IEnumerable<IServiceHandler> handlers) : IServiceHandler
+public class CompositeServiceHandler(IEnumerable<IServiceSource> handlers) : IServiceSource
 {
-    public IServiceSource? TryCreateSource(Type tag)
+    public IService? TryGetService(Type tag)
     {
-        foreach (IServiceHandler handler in handlers)
+        foreach (IServiceSource handler in handlers)
         {
-            if (handler.TryCreateSource(tag).TryNotNull(out IServiceSource source))
+            if (handler.TryGetService(tag).TryNotNull(out IService source))
             {
                 return source;
             }

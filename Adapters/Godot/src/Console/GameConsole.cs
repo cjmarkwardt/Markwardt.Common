@@ -8,12 +8,6 @@ public interface IGameConsole
     void Configure(string command, Action<IReadOnlyList<string>> action);
 }
 
-public static class GameConsoleExtensions
-{
-    public static void Configure(this IGameConsole console, Action<IReadOnlyList<string>> action)
-        => console.Configure(action.Method.Name, action);
-}
-
 public partial class GameConsole : ColorRect, IGameConsole
 {
     public static string Layer => $"Console:{Guid.NewGuid():N}";

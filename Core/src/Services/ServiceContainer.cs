@@ -1,51 +1,44 @@
 namespace Markwardt;
 
-public interface IServiceContainer : IServiceProvider, IServiceConfiguration, IDisposable, IAsyncDisposable;
+public interface IServiceContainer : IAsyncServiceProvider, IServiceConfiguration, IDisposable, IAsyncDisposable;
 
-public sealed class ServiceContainer(IServiceHandler handler) : IServiceContainer
+public sealed class ServiceContainer(IServiceSource source) : BaseAsyncDisposable, IServiceContainer
 {
     public ServiceContainer()
         : this(new AutoHandler()) { }
 
-    private readonly Dictionary<Type, Func<IServiceSource>> sourceCreators = [];
-    private readonly Dictionary<Type, IServiceSource> sources = [];
+    private readonly Dictionary<Type, IService> services = [];
 
     private bool isDisposed;
 
-    public void Configure(Type tag, Func<IServiceSource>? sourceCreator)
+    public void Configure(Type tag, IService? service)
     {
-        if (sourceCreator is null)
+        if (service is null)
         {
-            sourceCreators.Remove(tag);
+            services.Remove(tag);
         }
         else
         {
-            sourceCreators[tag] = sourceCreator;
+            services[tag] = service;
         }
     }
 
-    public object? GetService(Type tag)
+    public async ValueTask<object?> GetService(Type tag, CancellationToken cancellation = default)
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
 
-        if (typeof(IServiceProvider).Equals(tag))
+        if (tag.Equals(typeof(IAsyncServiceProvider)))
         {
             return this;
         }
-        else if (sources.TryGetValue(tag, out IServiceSource? source))
+        else if (services.TryGetValue(tag, out IService? service))
         {
-            return source.GetService(this);
+            return await service.Resolve(this, cancellation: cancellation);
         }
-        else if (sourceCreators.TryGetValue(tag, out Func<IServiceSource>? sourceCreator))
+        else if (source.TryGetService(tag).TryNotNull(out service))
         {
-            source = sourceCreator();
-            sources.Add(tag, source);
-            return source.GetService(this);
-        }
-        else if (handler.TryCreateSource(tag).TryNotNull(out IServiceSource createdSource))
-        {
-            sources.Add(tag, createdSource);
-            return createdSource.GetService(this);
+            services.Add(tag, service);
+            return await service.Resolve(this, cancellation: cancellation);
         }
         else
         {
@@ -53,24 +46,21 @@ public sealed class ServiceContainer(IServiceHandler handler) : IServiceContaine
         }
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         if (!isDisposed)
         {
             isDisposed = true;
-            sources.Values.ForEach(x => x.Dispose());
+            services.Values.ForEach(x => x.Dispose());
         }
     }
 
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask OnAsyncDispose()
     {
         if (!isDisposed)
         {
             isDisposed = true;
-            await Task.WhenAll(sources.Values.Select(x => x.DisposeAsync().AsTask()));
+            await Task.WhenAll(services.Values.Select(x => x.DisposeAsync().AsTask()));
         }
     }
-
-    object? IServiceProvider.GetService(Type serviceType)
-        => GetService(serviceType);
 }

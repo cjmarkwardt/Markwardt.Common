@@ -19,7 +19,7 @@ public class BackgroundTaskk(Func<CancellationToken, Task> action) : BaseDisposa
         
         if (completed is not null)
         {
-            task.Completed.Subscribe(completed);
+            task.Completed.Take(1).Subscribe(completed);
         }
 
         task.Start();

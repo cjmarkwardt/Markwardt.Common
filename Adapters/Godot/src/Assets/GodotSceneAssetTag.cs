@@ -1,8 +1,8 @@
 namespace Markwardt;
 
-public abstract class GodotAssetTag<T>(string path) : ServiceTag
+public abstract class GodotAssetTag<T>(string path) : SimpleTag
     where T : Resource
 {
-    protected override sealed object GetService(IServiceProvider services)
+    protected override sealed object Get()
         => new GodotAssetx<T>(path);
 }

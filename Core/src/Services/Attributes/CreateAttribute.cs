@@ -1,10 +1,11 @@
 namespace Markwardt;
 
 [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
-public class CreateAttribute(Type implementation) : Attribute
+public class CreateAttribute(Type? implementation = null, string? constructorName = null) : ServiceAttribute
 {
-    public Type Implementation => implementation;
+    public override IService GetService(Type type)
+        => Service.Constructor(implementation ?? type.GetDefaultImplementation(), constructorName);
 }
 
 [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
-public class CreateAttribute<TImplementation>() : CreateAttribute(typeof(TImplementation));
+public class CreateAttribute<TImplementation>(string? constructorName = null) : CreateAttribute(typeof(TImplementation), constructorName);

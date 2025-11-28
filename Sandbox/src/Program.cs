@@ -1,1 +1,1 @@
-﻿TerminalRunner.Run<SandboxStarter>();
+﻿TerminalRunner.Run<Markwardt.SandboxStarter>();

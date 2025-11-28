@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-public interface IServiceHandler
+public interface IServiceSource
 {
-    IServiceSource? TryCreateSource(Type tag);
+    IService? TryGetService(Type tag);
 }

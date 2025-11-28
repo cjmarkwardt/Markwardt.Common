@@ -16,6 +16,7 @@ global using System.Net.Sockets;
 global using System.Collections;
 global using System.Dynamic;
 global using System.Reactive;
+global using System.Runtime.CompilerServices;
 
 global using Markwardt;
 

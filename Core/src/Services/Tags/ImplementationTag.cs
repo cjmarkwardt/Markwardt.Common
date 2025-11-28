@@ -1,8 +1,8 @@
 namespace Markwardt;
 
-public class ImplementationTag<T> : IServiceTag
+public class ConstructorTag<T> : IServiceTag
     where T : class
 {
-    public IServiceSource GetSource()
-        => ServiceSource.FromImplementation(typeof(T));
+    public IService GetService()
+        => Service.Constructor<T>();
 }

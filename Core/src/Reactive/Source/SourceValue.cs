@@ -36,11 +36,15 @@ public static class SourceValueExtensions
 
 public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
 {
-    private SourceValue()
-        => value = default!;
+    public SourceValue()
+    {
+        isSet = false;
+        value = default!;
+    }
 
     public SourceValue(T value, IObservable<T>? changes = null)
     {
+        isSet = true;
         this.value = value;
 
         if (changes is not null)
@@ -52,10 +56,11 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
     private readonly Subject<T> changes = new();
     private readonly WeakSubscriber<T> subscriber = new();
 
+    private bool isSet;
     private T value;
     public new T Value
     {
-        get => value;
+        get => isSet ? value : throw new InvalidOperationException("Value has not been set.");
         set
         {
             Detach();
@@ -85,6 +90,8 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
 
     private void Set(T value)
     {
+        isSet = true;
+        
         if (!this.value.ValueEquals(value))
         {
             this.value = value;

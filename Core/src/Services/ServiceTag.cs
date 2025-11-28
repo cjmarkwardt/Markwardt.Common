@@ -2,15 +2,15 @@ namespace Markwardt;
 
 public interface IServiceTag
 {
-    IServiceSource GetSource();
+    IService GetService();
 }
 
 public abstract class ServiceTag : IServiceTag
 {
     public virtual bool IsCached => true;
 
-    public IServiceSource GetSource()
-        => ServiceSource.FromDelegate(GetService, IsCached);
+    public IService GetService()
+        => Service.Delegate(GetService, IsCached);
 
-    protected abstract object GetService(IServiceProvider services);
+    protected abstract ValueTask<object> GetService(IAsyncServiceProvider services, CancellationToken cancellation = default);
 }

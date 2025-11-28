@@ -12,10 +12,10 @@ public partial class ServiceInitializer<TStarter> : Node
     {
         GetTree().AutoAcceptQuit = false;
 
-        configuration.ConfigureInstance<Window>(GetTree().Root);
-        configuration.ConfigureInstance<SceneTree>(GetTree());
-        configuration.ConfigureImplementation<ILogger, GodotLogger>();
-        configuration.ConfigureImplementation<IExiter, GodotExiter>();
+        configuration.Configure<Window>(Service.Instance(GetTree().Root));
+        configuration.Configure<SceneTree>(Service.Instance(GetTree()));
+        configuration.Configure<ILogger, GodotLogger>();
+        configuration.Configure<IExiter, GodotExiter>();
         configuration.ConfigureProjectSetting<ApplicationNameTag>("application/config/name", x => x.AsString());
         configuration.ConfigureProjectSetting<ApplicationVersionTag>("application/config/version", x => x.AsString());
     }

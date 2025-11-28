@@ -1,8 +1,8 @@
 namespace Markwardt;
 
 [ServiceType<string>]
-public class ApplicationNameTag : ServiceTag
+public class ApplicationNameTag : SimpleTag
 {
-    protected override object GetService(IServiceProvider services)
+    protected override object Get()
         => (Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly()).GetName().Name.NotNull();
 }

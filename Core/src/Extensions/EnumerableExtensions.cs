@@ -2,14 +2,14 @@ namespace Markwardt;
 
 public static class EnumerableExtensions
 {
-    public static IEnumerable<TSelected> SelectWhere<T, TSelected>(this IEnumerable<T> enumerable, Func<T, Maybe<TSelected>> select)
+    public static IEnumerable<(T, TSelected)> SelectWhere<T, TSelected>(this IEnumerable<T> enumerable, Func<T, Maybe<TSelected>> select)
     {
         foreach (T item in enumerable)
         {
             Maybe<TSelected> trySelect = select(item);
             if (trySelect.HasValue)
             {
-                yield return trySelect.Value;
+                yield return (item, trySelect.Value);
             }
         }
     }

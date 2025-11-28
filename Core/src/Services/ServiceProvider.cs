@@ -1,11 +1,18 @@
 namespace Markwardt;
 
-public static class ServiceProvider
+public interface IAsyncServiceProvider
 {
-    private static IServiceProvider? shared;
-    public static IServiceProvider Shared => shared ?? throw new InvalidOperationException("Shared service provider has not been set");
+    ValueTask<object?> GetService(Type tag, CancellationToken cancellation = default);
+}
 
-    public static void SetShared(IServiceProvider provider)
+public static class AsyncServiceProvider
+{
+    private static IAsyncServiceProvider? shared;
+    public static IAsyncServiceProvider Shared => shared ?? throw new InvalidOperationException("Shared service provider has not been set");
+
+    private readonly static Dictionary<object, IService> createCache = [];
+
+    public static void SetShared(IAsyncServiceProvider provider)
     {
         if (shared is not null)
         {
@@ -15,41 +22,38 @@ public static class ServiceProvider
         shared = provider;
     }
 
-    public static T? GetService<TTag, T>(this IServiceProvider services)
-        => (T?)services.GetService(typeof(TTag));
+    public static async ValueTask<T?> GetService<T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+        where T : notnull
+        => (T?)await services.GetService(typeof(T?), cancellation);
 
-    public static T GetRequiredService<TTag, T>(this IServiceProvider services)
-        => (T)services.GetRequiredService(typeof(TTag));
+    public static async ValueTask<T?> GetService<TTag, T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+        where T : notnull
+        => (T?)await services.GetService(typeof(TTag), cancellation);
 
-    public static object Create(this IServiceProvider services, Type implementation, IReadOnlyDictionary<string, object?>? arguments = null)
-        => ServiceBuilder.Build(implementation, () => implementation.GetDefaultFactory() ?? throw new InvalidOperationException($"No default factory for type {implementation}"), services, arguments);
+    public static async ValueTask<object> GetRequiredService(this IAsyncServiceProvider services, Type tag, CancellationToken cancellation = default)
+        => await services.GetService(tag, cancellation) ?? throw new InvalidOperationException($"Service {tag} is required but could not be resolved");
 
-    public static T Create<T>(this IServiceProvider services)
-        => (T)services.Create(typeof(T));
+    public static async ValueTask<T> GetRequiredService<T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+        where T : notnull
+        => (T)await services.GetRequiredService(typeof(T), cancellation);
 
-    public static async ValueTask Start<T>(this IServiceContainer services, Action<IServiceConfiguration>? configure = null, bool setShared = true)
-        where T : IStarter
+    public static async ValueTask<T> GetRequiredService<TTag, T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+        where T : notnull
+        => (T)await services.GetRequiredService(typeof(TTag), cancellation);
+
+    public static async ValueTask Start(this IServiceContainer services, IService service, Action<IServiceConfiguration>? configureServices = null, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null, bool setShared = true, CancellationToken cancellation = default)
     {
         if (setShared)
         {
             SetShared(services);
         }
 
-        configure?.Invoke(services);
-        await services.Create<T>().Start();
+        configureServices?.Invoke(services);
+        
+        await (await service.Resolve<IStarter>(services, parameters, properties, cancellation)).Start(cancellation);
     }
 
-    public static Delegate CreateFactory(this IServiceProvider services, Type factory, Type? implementation = null)
-    {
-        Type target = implementation ?? factory.GetDelegateResult() ?? throw new InvalidOperationException($"Type {factory} has no delegate result");
-        return Delegator.CreateDelegate(factory, arguments => services.Create(target, arguments));
-    }
-
-    public static TFactory CreateFactory<TFactory>(this IServiceProvider services)
-        where TFactory : Delegate
-        => (TFactory)services.CreateFactory(typeof(TFactory));
-
-    public static TFactory CreateFactory<TFactory, TImplementation>(this IServiceProvider services)
-        where TFactory : Delegate
-        => (TFactory)services.CreateFactory(typeof(TFactory), typeof(TImplementation));
+    public static async ValueTask Start<T>(this IServiceContainer services, Action<IServiceConfiguration>? configureServices = null, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null, bool setShared = true, CancellationToken cancellation = default)
+        where T : notnull, IStarter
+        => await services.Start(Service.Constructor<T>(), configureServices, parameters, properties, setShared, cancellation);
 }

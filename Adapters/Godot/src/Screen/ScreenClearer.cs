@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-[RouteService<IScreenController>]
+[Inject<IScreenController>]
 public interface IScreenClearer
 {
     void Clear();

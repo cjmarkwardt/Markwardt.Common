@@ -3,7 +3,7 @@ namespace Markwardt;
 public interface IDataSerializationContext
 {
     void Collect(object? value);
-    ValueTask Serialize(IDataWriter writer, object? value);
+    ValueTask Serialize(IDataWriter writer, object? value, CancellationToken cancellation = default);
 }
 
 public class DataSerializationContext(IDataSerializerSource serializers) : IDataSerializationContext
@@ -24,19 +24,19 @@ public class DataSerializationContext(IDataSerializerSource serializers) : IData
         }
     }
 
-    public async ValueTask Serialize(IDataWriter writer, object? value)
+    public async ValueTask Serialize(IDataWriter writer, object? value, CancellationToken cancellation = default)
     {
-        if (! await writer.TryWriteValue(value))
+        if (! await writer.TryWriteValue(value, cancellation))
         {
             if (references.Retrieve(value!, out int? reference))
             {
                 int typeId = serializers.GetTypeId(DataObject.GetDataType(value!)).ValueNotNull($"No type ID found for type {value!.GetType()}");
-                await writer.WriteObject(typeId, reference);
-                await serializers.GetSerializer(typeId).NotNull($"No serializer found for type {value.GetType()}").Serialize(this, writer, value);
+                await writer.WriteObject(typeId, reference, cancellation);
+                await serializers.GetSerializer(typeId).NotNull($"No serializer found for type {value.GetType()}").Serialize(this, writer, value, cancellation);
             }
             else
             {
-                await writer.WriteReference(reference.Value);
+                await writer.WriteReference(reference.Value, cancellation);
             }
         }
     }

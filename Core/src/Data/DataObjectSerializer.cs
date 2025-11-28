@@ -35,7 +35,7 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
         }
     }
 
-    public override async ValueTask Serialize(IDataSerializationContext context, IDataWriter writer, IDataObject value)
+    public override async ValueTask Serialize(IDataSerializationContext context, IDataWriter writer, IDataObject value, CancellationToken cancellation = default)
     {
         foreach (DataObjectProperty property in layout.Properties.Values)
         {
@@ -77,7 +77,7 @@ public class DataObjectSerializer(Type type) : DataSerializer<IDataObject>
         await writer.WriteStop();
     }
 
-    public override async ValueTask<IDataObject> Deserialize(IDataDeserializationContext context, IDataReader reader)
+    public override async ValueTask<IDataObject> Deserialize(IDataDeserializationContext context, IDataReader reader, CancellationToken cancellation = default)
     {
         DataObject obj = new(type);
         while (true)

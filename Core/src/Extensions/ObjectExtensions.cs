@@ -8,6 +8,9 @@ public static class ObjectExtensions
     public static Maybe<T> Filter<T>(this T target, Func<T, bool> filter)
         => filter(target) ? target.Maybe() : default;
 
+    public static T CastTo<T>(this object target)
+        => (T)target;
+
     public static T Do<T>(this T target, Action<T> action)
     {
         action(target);

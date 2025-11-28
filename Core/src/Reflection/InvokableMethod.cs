@@ -1,50 +1,102 @@
 namespace Markwardt;
 
-public class InvokableMethod : IInvokable
+public class InvokableMethod : ICustomAttributeProvider
 {
-    public InvokableMethod(Func<MethodBase> getMethod)
+    public InvokableMethod(MethodBase methodBase)
     {
-        source = new(getMethod);
-        parameters = new(Source.GetParameters().Select(x => new IInvokable.Parameter(x)).ToList);
+        this.methodBase = methodBase;
+
+        List<ParameterInfo> parameters = methodBase.GetParameters().ToList();
+        if (parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken))
+        {
+            parameters.RemoveAt(parameters.Count - 1);
+            hasCancellation = true;
+        }
+
+        Parameters = parameters;
+
+        if (methodBase is ConstructorInfo constructor)
+        {
+            constructorInvoker = ConstructorInvoker.Create(constructor);
+            InstanceType = null;
+            ResultType = constructor.DeclaringType.NotNull();
+        }
+        else if (methodBase is MethodInfo method)
+        {
+            methodInvoker = MethodInvoker.Create(method);
+            InstanceType = method.IsStatic ? null : method.DeclaringType.NotNull();
+
+            ResultType = method.ReturnType.GetResultType();
+            ResultAttributes = method.ReturnTypeCustomAttributes;
+        }
+        else
+        {
+            throw new NotSupportedException($"Method type {methodBase} is not supported");
+        }
     }
 
-    private ConstructorInvoker? constructorInvoker;
-    private MethodInvoker? methodInvoker;
+    private readonly MethodBase methodBase;
+    private readonly ConstructorInvoker? constructorInvoker;
+    private readonly MethodInvoker? methodInvoker;
+    private readonly bool hasCancellation;
 
-    private readonly Lazy<MethodBase> source;
-    public MethodBase Source => source.Value;
+    public Type? InstanceType { get; }
+    public IReadOnlyList<ParameterInfo> Parameters { get; }
+    public Type ResultType { get; }
+    public ICustomAttributeProvider? ResultAttributes { get; }
 
-    private readonly Lazy<IReadOnlyList<IInvokable.Parameter>> parameters;
-    public IReadOnlyList<IInvokable.Parameter> Parameters => parameters.Value;
+    public object[] GetCustomAttributes(bool inherit)
+        => methodBase.GetCustomAttributes(inherit);
 
-    object? IInvokable.Source => Source;
+    public object[] GetCustomAttributes(Type attributeType, bool inherit)
+        => methodBase.GetCustomAttributes(attributeType, inherit);
 
-    public object? Invoke(object? instance, Span<object?> arguments)
+    public bool IsDefined(Type attributeType, bool inherit)
+        => methodBase.IsDefined(attributeType, inherit);
+
+    public async ValueTask<object?> Invoke(object? instance, Memory<object?> inputs, CancellationToken cancellation = default)
     {
-        if (constructorInvoker is null && methodInvoker is null)
+        if (InstanceType is null && instance is not null)
         {
-            if (Source is ConstructorInfo constructor)
-            {
-                constructorInvoker = ConstructorInvoker.Create(constructor);
-            }
-            else
-            {
-                methodInvoker = MethodInvoker.Create(Source);
-            }
+            throw new InvalidOperationException($"Unexpected instance on invocation");
+        }
+        else if (InstanceType is not null && instance is null)
+        {
+            throw new InvalidOperationException($"Missing instance on invocation");
+        }
+
+        if (hasCancellation)
+        {
+            Memory<object?> newInputs = new object?[inputs.Length + 1];
+            inputs.CopyTo(newInputs);
+            newInputs.Span[newInputs.Length - 1] = cancellation;
+            inputs = newInputs;
         }
 
         if (constructorInvoker is not null)
         {
-            if (instance is not null)
+            return constructorInvoker.Invoke(inputs.Span);
+        }
+        else if (methodInvoker is not null)
+        {
+            object? result = methodInvoker.Invoke(instance, inputs.Span);
+            switch (result)
             {
-                throw new InvalidOperationException("Cannot invoke a constructor on an instance");
+                case Task task:
+                    await task;
+                    result = ResultType == typeof(void) ? null : ((dynamic)task).Result;
+                    break;
+                case ValueTask task:
+                    await task;
+                    result = ResultType == typeof(void) ? null : ((dynamic)task).Result;
+                    break;
             }
 
-            return constructorInvoker.Invoke(arguments);
+            return result;
         }
         else
         {
-            return methodInvoker.NotNull().Invoke(instance, arguments);
+            throw new InvalidOperationException($"No invoker available for {methodBase}");
         }
     }
 }

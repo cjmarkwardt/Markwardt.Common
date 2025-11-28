@@ -1,6 +1,7 @@
 namespace Markwardt;
 
-public interface INetworkHost : INetworkPeer
+public interface INetworkHost : IDisposable
 {
+    object? Profile { get; }
     IEnumerable<INetworkConnection> Connections { get; }
 }
