@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-public interface IServiceContainer : IAsyncServiceProvider, IServiceConfiguration, IDisposable, IAsyncDisposable;
+public interface IServiceContainer : IServiceProvider, IServiceConfiguration, IDisposable, IAsyncDisposable;
 
 public sealed class ServiceContainer(IServiceSource source) : BaseAsyncDisposable, IServiceContainer
 {
@@ -23,22 +23,22 @@ public sealed class ServiceContainer(IServiceSource source) : BaseAsyncDisposabl
         }
     }
 
-    public async ValueTask<object?> GetService(Type tag, CancellationToken cancellation = default)
+    public object? GetService(Type tag)
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
 
-        if (tag.Equals(typeof(IAsyncServiceProvider)))
+        if (tag.Equals(typeof(IServiceProvider)))
         {
             return this;
         }
         else if (services.TryGetValue(tag, out IService? service))
         {
-            return await service.Resolve(this, cancellation: cancellation);
+            return service.Resolve(this);
         }
         else if (source.TryGetService(tag).TryNotNull(out service))
         {
             services.Add(tag, service);
-            return await service.Resolve(this, cancellation: cancellation);
+            return service.Resolve(this);
         }
         else
         {

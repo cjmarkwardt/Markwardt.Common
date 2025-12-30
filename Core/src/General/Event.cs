@@ -5,12 +5,18 @@ public interface IEvent : IObservable
     void Invoke();
 }
 
-public class Event(ISubject<bool>? subject) : IEvent
+public class Event : IEvent
 {
-    public Event()
-        : this(null) { }
+    public static Event FromSubject(ISubject<bool> subject)
+        => new(subject);
 
-    private readonly ISubject<bool> subject = subject ?? new Subject<bool>();
+    private Event(ISubject<bool> subject)
+        => this.subject = subject;
+
+    public Event()
+        : this(new Subject<bool>()) { }
+
+    private readonly ISubject<bool> subject;
 
     public void Invoke()
         => subject.OnNext(true);
@@ -24,12 +30,18 @@ public interface IEvent<T> : IObservable<T>
     void Invoke(T value);
 }
 
-public class Event<T>(ISubject<T>? subject) : IEvent<T>
+public class Event<T> : IEvent<T>
 {
-    public Event()
-        : this(null) { }
+    public static Event<T> FromSubject(ISubject<T> subject)
+        => new(subject);
 
-    private readonly ISubject<T> subject = subject ?? new Subject<T>();
+    private Event(ISubject<T> subject)
+        => this.subject = subject;
+
+    public Event()
+        : this(new Subject<T>()) { }
+
+    private readonly ISubject<T> subject;
 
     public void Invoke(T value)
         => subject.OnNext(value);

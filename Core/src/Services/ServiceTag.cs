@@ -10,7 +10,7 @@ public abstract class ServiceTag : IServiceTag
     public virtual bool IsCached => true;
 
     public IService GetService()
-        => Service.Delegate(GetService, IsCached);
+        => Service.Delegate(x => GetService(x), IsCached);
 
-    protected abstract ValueTask<object> GetService(IAsyncServiceProvider services, CancellationToken cancellation = default);
+    protected abstract object GetService(IServiceProvider services);
 }

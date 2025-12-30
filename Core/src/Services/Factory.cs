@@ -1,3 +1,3 @@
 namespace Markwardt;
 
-public delegate T Factory<out T>();
+public delegate T Factory<T>();

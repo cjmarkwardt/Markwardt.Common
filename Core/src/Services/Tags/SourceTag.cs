@@ -3,17 +3,17 @@ namespace Markwardt;
 public abstract class SourceTag<TSource> : ServiceTag
     where TSource : notnull
 {
-    protected override sealed async ValueTask<object> GetService(IAsyncServiceProvider services, CancellationToken cancellation = default)
-        => await Get(services, await services.GetRequiredService<TSource>(cancellation), cancellation);
+    protected override sealed object GetService(IServiceProvider services)
+        => Get(services, services.GetRequiredService<TSource>());
 
-    protected abstract ValueTask<object> Get(IAsyncServiceProvider services, TSource source, CancellationToken cancellation);
+    protected abstract object Get(IServiceProvider services, TSource source);
 }
 
 public abstract class SourceTag<TSourceTag, TSource> : ServiceTag
     where TSource : notnull
 {
-    protected override sealed async ValueTask<object> GetService(IAsyncServiceProvider services, CancellationToken cancellation = default)
-        => await Get(services, await services.GetRequiredService<TSourceTag, TSource>(cancellation), cancellation);
+    protected override sealed object GetService(IServiceProvider services)
+        => Get(services, services.GetRequiredService<TSourceTag, TSource>());
 
-    protected abstract ValueTask<object> Get(IAsyncServiceProvider services, TSource source, CancellationToken cancellation);
+    protected abstract object Get(IServiceProvider services, TSource source);
 }

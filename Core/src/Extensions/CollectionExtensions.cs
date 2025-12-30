@@ -2,6 +2,47 @@ namespace Markwardt;
 
 public static class CollectionExtensions
 {
+    public static void ForEachChange<T>(this IReadOnlySet<T> current, IEnumerable<T> next, Func<T, bool> nextContains, Action<T> onAdded, Action<T> onRemoved)
+    {
+        foreach (T item in current)
+        {
+            if (!nextContains(item))
+            {
+                onRemoved(item);
+            }
+        }
+
+        foreach (T item in next)
+        {
+            if (!current.Contains(item))
+            {
+                onAdded(item);
+            }
+        }
+    }
+
+    public static void ForEachChange<T, TValue>(this IReadOnlyDictionary<T, TValue> current, IEnumerable<T> next, Func<T, bool> nextContains, Action<T> onAdded, Action<T, TValue> onRemoved)
+    {
+        foreach ((T item, TValue value) in current)
+        {
+            if (!nextContains(item))
+            {
+                onRemoved(item, value);
+            }
+        }
+
+        foreach (T item in next)
+        {
+            if (!current.ContainsKey(item))
+            {
+                onAdded(item);
+            }
+        }
+    }
+    
+    public static void ForEachChange<T, TValue>(this IReadOnlyDictionary<T, TValue> current, IEnumerable<T> next, Func<T, bool> nextContains, Action<T, TValue> onAdded, Action<T, TValue> onRemoved)
+        => current.ForEachChange(next, nextContains, item => onAdded(item, current[item]), onRemoved);
+
     public static void Add<T>(this ICollection<T> collection, IEnumerable<T> items)
     {
         foreach (T item in items)

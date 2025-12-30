@@ -1,18 +1,13 @@
 namespace Markwardt;
 
-public interface IAsyncServiceProvider
+public static class ServiceProvider
 {
-    ValueTask<object?> GetService(Type tag, CancellationToken cancellation = default);
-}
-
-public static class AsyncServiceProvider
-{
-    private static IAsyncServiceProvider? shared;
-    public static IAsyncServiceProvider Shared => shared ?? throw new InvalidOperationException("Shared service provider has not been set");
+    private static IServiceProvider? shared;
+    public static IServiceProvider Shared => shared ?? throw new InvalidOperationException("Shared service provider has not been set");
 
     private readonly static Dictionary<object, IService> createCache = [];
 
-    public static void SetShared(IAsyncServiceProvider provider)
+    public static void SetShared(IServiceProvider provider)
     {
         if (shared is not null)
         {
@@ -22,38 +17,36 @@ public static class AsyncServiceProvider
         shared = provider;
     }
 
-    public static async ValueTask<T?> GetService<T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+    public static T? GetService<T>(this IServiceProvider services)
         where T : notnull
-        => (T?)await services.GetService(typeof(T?), cancellation);
+        => (T?)services.GetService(typeof(T?));
 
-    public static async ValueTask<T?> GetService<TTag, T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+    public static T? GetService<TTag, T>(this IServiceProvider services)
         where T : notnull
-        => (T?)await services.GetService(typeof(TTag), cancellation);
+        => (T?)services.GetService(typeof(TTag));
 
-    public static async ValueTask<object> GetRequiredService(this IAsyncServiceProvider services, Type tag, CancellationToken cancellation = default)
-        => await services.GetService(tag, cancellation) ?? throw new InvalidOperationException($"Service {tag} is required but could not be resolved");
+    public static object GetRequiredService(this IServiceProvider services, Type tag)
+        => services.GetService(tag) ?? throw new InvalidOperationException($"Service {tag} is required but could not be resolved");
 
-    public static async ValueTask<T> GetRequiredService<T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+    public static T GetRequiredService<T>(this IServiceProvider services)
         where T : notnull
-        => (T)await services.GetRequiredService(typeof(T), cancellation);
+        => (T)services.GetRequiredService(typeof(T));
 
-    public static async ValueTask<T> GetRequiredService<TTag, T>(this IAsyncServiceProvider services, CancellationToken cancellation = default)
+    public static T GetRequiredService<TTag, T>(this IServiceProvider services)
         where T : notnull
-        => (T)await services.GetRequiredService(typeof(TTag), cancellation);
+        => (T)services.GetRequiredService(typeof(TTag));
 
-    public static async ValueTask Start(this IServiceContainer services, IService service, Action<IServiceConfiguration>? configureServices = null, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null, bool setShared = true, CancellationToken cancellation = default)
+    public static async ValueTask Start(this IServiceContainer services, Type starter, bool setShared = true, CancellationToken cancellation = default)
     {
         if (setShared)
         {
             SetShared(services);
         }
 
-        configureServices?.Invoke(services);
-        
-        await (await service.Resolve<IStarter>(services, parameters, properties, cancellation)).Start(cancellation);
+        await Service.Constructor(starter).Resolve<IStarter>(services).Start(cancellation);
     }
 
-    public static async ValueTask Start<T>(this IServiceContainer services, Action<IServiceConfiguration>? configureServices = null, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null, bool setShared = true, CancellationToken cancellation = default)
-        where T : notnull, IStarter
-        => await services.Start(Service.Constructor<T>(), configureServices, parameters, properties, setShared, cancellation);
+    public static async ValueTask Start<TStarter>(this IServiceContainer services, bool setShared = true, CancellationToken cancellation = default)
+        where TStarter : notnull, IStarter
+        => await services.Start(typeof(TStarter), setShared, cancellation);
 }

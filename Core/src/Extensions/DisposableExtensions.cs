@@ -2,6 +2,9 @@ namespace Markwardt;
 
 public static class DisposableExtensions
 {
+    public static void DisposeAll(this IEnumerable<IDisposable> targets)
+        => targets.ForEach(x => x.Dispose());
+
     public static void TryDispose(this object? target)
     {
         if (target is IDisposable disposable)

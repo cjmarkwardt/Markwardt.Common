@@ -6,14 +6,7 @@ public class InvokableMethod : ICustomAttributeProvider
     {
         this.methodBase = methodBase;
 
-        List<ParameterInfo> parameters = methodBase.GetParameters().ToList();
-        if (parameters.LastOrDefault()?.ParameterType == typeof(CancellationToken))
-        {
-            parameters.RemoveAt(parameters.Count - 1);
-            hasCancellation = true;
-        }
-
-        Parameters = parameters;
+        Parameters = methodBase.GetParameters().ToList();
 
         if (methodBase is ConstructorInfo constructor)
         {
@@ -38,7 +31,6 @@ public class InvokableMethod : ICustomAttributeProvider
     private readonly MethodBase methodBase;
     private readonly ConstructorInvoker? constructorInvoker;
     private readonly MethodInvoker? methodInvoker;
-    private readonly bool hasCancellation;
 
     public Type? InstanceType { get; }
     public IReadOnlyList<ParameterInfo> Parameters { get; }
@@ -54,7 +46,7 @@ public class InvokableMethod : ICustomAttributeProvider
     public bool IsDefined(Type attributeType, bool inherit)
         => methodBase.IsDefined(attributeType, inherit);
 
-    public async ValueTask<object?> Invoke(object? instance, Memory<object?> inputs, CancellationToken cancellation = default)
+    public object? Invoke(object? instance, Memory<object?> inputs)
     {
         if (InstanceType is null && instance is not null)
         {
@@ -65,34 +57,27 @@ public class InvokableMethod : ICustomAttributeProvider
             throw new InvalidOperationException($"Missing instance on invocation");
         }
 
-        if (hasCancellation)
-        {
-            Memory<object?> newInputs = new object?[inputs.Length + 1];
-            inputs.CopyTo(newInputs);
-            newInputs.Span[newInputs.Length - 1] = cancellation;
-            inputs = newInputs;
-        }
-
         if (constructorInvoker is not null)
         {
-            return constructorInvoker.Invoke(inputs.Span);
+            try
+            {
+                return constructorInvoker.Invoke(inputs.Span);
+            }
+            catch (Exception exception)
+            {
+                throw new InvalidOperationException($"Failed to invoke constructor {methodBase} on type {methodBase.DeclaringType}", exception);
+            }
         }
         else if (methodInvoker is not null)
         {
-            object? result = methodInvoker.Invoke(instance, inputs.Span);
-            switch (result)
+            try
             {
-                case Task task:
-                    await task;
-                    result = ResultType == typeof(void) ? null : ((dynamic)task).Result;
-                    break;
-                case ValueTask task:
-                    await task;
-                    result = ResultType == typeof(void) ? null : ((dynamic)task).Result;
-                    break;
+                return methodInvoker.Invoke(instance, inputs.Span);
             }
-
-            return result;
+            catch (Exception exception)
+            {
+                throw new InvalidOperationException($"Failed to invoke method {methodBase} on type {methodBase.DeclaringType}", exception);
+            }
         }
         else
         {

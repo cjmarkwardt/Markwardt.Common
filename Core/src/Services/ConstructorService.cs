@@ -5,24 +5,24 @@ public class ConstructorService(InvokableMethod constructor, IReadOnlyDictionary
     private readonly IReadOnlyList<ParameterResolver> parameterResolvers = constructor.Parameters.Select(x => new ParameterResolver(x)).ToList();
     private readonly IReadOnlyList<PropertyInjector> propertyInjectors = constructor.ResultType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(x => x.SetMethod is not null).Select(x => new PropertyInjector(x)).ToList();
 
-    public async ValueTask<object> Resolve(IAsyncServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null, CancellationToken cancellation = default)
+    public object Resolve(IServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null)
     {
         object?[] arguments = new object?[parameterResolvers.Count];
         for (int i = 0; i < parameterResolvers.Count; i++)
         {
-            arguments[i] = (await parameterResolvers[i].Resolve(services, parameterBuilders, parameters, cancellation)).Value;
+            arguments[i] = (parameterResolvers[i].Resolve(services, parameterBuilders, parameters)).Value;
         }
 
-        object instance = (await constructor.Invoke(null, arguments, cancellation)).NotNull();
+        object instance = constructor.Invoke(null, arguments).NotNull();
 
         foreach (PropertyInjector property in propertyInjectors)
         {
-            await property.Inject(services, instance, propertyBuilders, properties, cancellation);
+            property.Inject(services, instance, propertyBuilders, properties);
         }
 
         if (instance is IAsyncInitializable asyncInitializable)
         {
-            await asyncInitializable.Initialize(cancellation);
+            asyncInitializable.Initialize();
         }
 
         return instance;
@@ -51,7 +51,7 @@ public class ConstructorService(InvokableMethod constructor, IReadOnlyDictionary
         public abstract Maybe<object?> DefaultValue { get; }
         public abstract ResolveMode Mode { get; }
 
-        public async ValueTask<Maybe<object?>> Resolve(IAsyncServiceProvider services, IReadOnlyDictionary<T, IService>? serviceOverrides, IReadOnlyDictionary<T, object?>? values, CancellationToken cancellation)
+        public Maybe<object?> Resolve(IServiceProvider services, IReadOnlyDictionary<T, IService>? serviceOverrides, IReadOnlyDictionary<T, object?>? values)
         {
             if (values is not null && values.TryGetValue(Target, out object? argument))
             {
@@ -59,11 +59,11 @@ public class ConstructorService(InvokableMethod constructor, IReadOnlyDictionary
             }
             else if (serviceOverrides is not null && serviceOverrides.TryGetValue(Target, out IService? service))
             {
-                return (await service.Resolve(services, null, null, cancellation)).Maybe<object?>();
+                return service.Resolve(services, null, null).Maybe<object?>();
             }
             else if (Service is not null)
             {
-                return (await Service.Resolve(services, null, null, cancellation)).Maybe<object?>();
+                return Service.Resolve(services, null, null).Maybe<object?>();
             }
             else if (Mode is ResolveMode.Skip)
             {
@@ -71,13 +71,13 @@ public class ConstructorService(InvokableMethod constructor, IReadOnlyDictionary
             }
             else
             {
-                return await GetService(services, Type.GetDefaultImplementation(), cancellation);
+                return GetService(services, Type.GetDefaultImplementation());
             }
         }
 
-        private async ValueTask<Maybe<object?>> GetService(IAsyncServiceProvider services, Type type, CancellationToken cancellation)
+        private Maybe<object?> GetService(IServiceProvider services, Type type)
         {
-            object? service = await services.GetService(type, cancellation);
+            object? service = services.GetService(type);
             if (service is null && Mode is ResolveMode.Required)
             {
                 throw new InvalidOperationException($"Service {type} is required but could not be resolved");
@@ -104,9 +104,9 @@ public class ConstructorService(InvokableMethod constructor, IReadOnlyDictionary
 
         public override ResolveMode Mode { get; } = !target.IsInit() && !target.IsRequired() ? ResolveMode.Skip : target.IsNullable() ? ResolveMode.Optional : ResolveMode.Required;
 
-        public async Task Inject(IAsyncServiceProvider services, object instance, IReadOnlyDictionary<PropertyInfo, IService>? builders, IReadOnlyDictionary<PropertyInfo, object?>? values, CancellationToken cancellation)
+        public void Inject(IServiceProvider services, object instance, IReadOnlyDictionary<PropertyInfo, IService>? builders, IReadOnlyDictionary<PropertyInfo, object?>? values)
         {
-            Maybe<object?> value = await Resolve(services, builders, values, cancellation);
+            Maybe<object?> value = Resolve(services, builders, values);
             if (value.HasValue)
             {
                 setter.Invoke(instance, value.Value);

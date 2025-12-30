@@ -10,8 +10,8 @@ public class CachedService(IService builder) : BaseAsyncDisposable, IService
 {
     private object? instance;
 
-    public async ValueTask<object> Resolve(IAsyncServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null, CancellationToken cancellation = default)
-        => instance ??= await builder.Resolve(services, parameters, properties, cancellation);
+    public object Resolve(IServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null)
+        => instance ??= builder.Resolve(services, parameters, properties);
 
     protected override void OnSharedDispose()
     {
