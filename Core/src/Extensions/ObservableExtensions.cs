@@ -2,6 +2,9 @@ namespace Markwardt;
 
 public static class ObservableExtensions
 {
+    public static void Subscribe<T>(this IObservable<T> source, IEvent<T> target)
+        => source.Subscribe(target.Invoke);
+
     public static IObservable<T> AsObservable<T>(this T value)
         => Observable.Never<T>().StartWith(value);
 

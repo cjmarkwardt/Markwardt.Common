@@ -31,4 +31,10 @@ public static class TaskExtensions
 
     public static async ValueTask WithTimeout(this ValueTask task, TimeSpan? timeout, CancellationToken cancellation = default)
         => await task.AsTask().WithTimeout(timeout, cancellation);
+
+    public static async void Fork(this Task task)
+        => await task;
+
+    public static async void Fork(this ValueTask task)
+        => await task;
 }

@@ -9,4 +9,24 @@ public static class BoolExtensions
             throw new InvalidOperationException(message);
         }
     }
+
+    public static bool On(this bool value, Action action)
+    {
+        if (value)
+        {
+            action();
+        }
+
+        return value;
+    }
+
+    public static bool Off(this bool value, Action action)
+    {
+        if (!value)
+        {
+            action();
+        }
+
+        return value;
+    }
 }

@@ -9,8 +9,12 @@ public static class TrackedDisposableExtensions
 {
     public static async void RunInBackground(this ITrackedDisposable disposable, Func<CancellationToken, ValueTask> action, CancellationToken cancellation = default)
     {
-        using CancellationTokenSource linkedCancellation = disposable.Disposal.Link(cancellation);
-        await action(linkedCancellation.Token);
+        try
+        {
+            using CancellationTokenSource linkedCancellation = disposable.Disposal.Link(cancellation);
+            await action(linkedCancellation.Token);
+        }
+        catch (OperationCanceledException) { }
     }
 
     public static void LoopInBackground(this ITrackedDisposable disposable, Func<CancellationToken, Action, ValueTask> action, CancellationToken cancellation = default)

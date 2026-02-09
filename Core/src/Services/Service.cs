@@ -80,6 +80,7 @@ public class Service(Func<IServiceProvider, IReadOnlyDictionary<ParameterInfo, o
 
     public static IService Factory(Type factory, Type? type = null, string? constructorName = null, Action<IServiceConfigurator>? configure = null, IReadOnlyDictionary<ParameterInfo, ParameterInfo>? parameterMappings = null, bool isCached = true)
     {
+        type ??= factory.GetCustomAttribute<FactoryResultAttribute>()?.Result;
         type ??= factory.GetDelegateResult() ?? throw new InvalidOperationException($"Factory type {factory} must be a delegate type");
         return Factory(factory, type?.FindConstructor(constructorName) ?? throw new InvalidOperationException($"Type {type} must have a default constructor"), configure, parameterMappings, isCached);
     }
