@@ -3,6 +3,8 @@ namespace Markwardt;
 public class ConstructorTag<T> : IServiceTag
     where T : class
 {
+    public virtual bool IsCached => true;
+
     public IService GetService()
-        => Service.Constructor<T>();
+        => new ConstructorService(typeof(T)).Cache(IsCached);
 }

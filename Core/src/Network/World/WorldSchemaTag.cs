@@ -1,8 +1,8 @@
 namespace Markwardt;
 
 [ServiceType<ISourceValue<string>>]
-public class WorldSchemaTag : SimpleTag
+public class WorldSchemaTag : ServiceTag
 {
-    protected override object Get()
+    protected override object Resolve(IServiceProvider services)
         => new SourceValue<string>();
 }

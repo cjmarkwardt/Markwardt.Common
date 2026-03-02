@@ -2,7 +2,23 @@ namespace Markwardt;
 
 public static class EnumerableExtensions
 {
-    public static IEnumerable<(T, TSelected)> SelectWhere<T, TSelected>(this IEnumerable<T> enumerable, Func<T, Maybe<TSelected>> select)
+    public static Maybe<T> MaybeFirst<T>(this IEnumerable<T> enumerable, Func<T, bool> predicate)
+    {
+        foreach (T item in enumerable)
+        {
+            if (predicate(item))
+            {
+                return item.Maybe();
+            }
+        }
+
+        return default;
+    }
+
+    public static Maybe<T> MaybeFirst<T>(this IEnumerable<T> enumerable)
+        => enumerable.MaybeFirst(_ => true);
+
+    public static IEnumerable<(T Key, TSelected Item)> SelectWhere<T, TSelected>(this IEnumerable<T> enumerable, Func<T, Maybe<TSelected>> select)
     {
         foreach (T item in enumerable)
         {
@@ -13,6 +29,13 @@ public static class EnumerableExtensions
             }
         }
     }
+
+    public static IEnumerable<(T Key, TSelected Item)> SelectWhere<T, TSelected>(this IEnumerable<T> enumerable, Func<T, TSelected?> select)
+        => enumerable.SelectWhere(x =>
+        {
+            TSelected? item = select(x);
+            return item is not null ? item.Maybe() : default;
+        });
 
     public static IEnumerable<T> Yield<T>(this T item)
     {

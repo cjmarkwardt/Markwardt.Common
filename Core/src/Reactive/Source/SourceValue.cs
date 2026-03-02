@@ -2,14 +2,14 @@ namespace Markwardt;
 
 public interface ISourceValue : IObservableValue
 {
-    new object? Value { get;set; }
+    new object? Value { get; set; }
 }
 
 public interface ISourceValue<T> : IObservableValue<T>, ISourceAttachable<T>
 {
     new T Value { get; set; }
 
-    void Alter(T value);
+    void Set(T value);
 }
 
 public static class SourceValueExtensions
@@ -23,7 +23,7 @@ public static class SourceValueExtensions
 
         if (!valueSet)
         {
-            source.Alter(value);
+            source.Set(value);
         }
     }
 
@@ -70,8 +70,16 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
 
     object? ISourceValue.Value { get => Value; set => Value = (T)value!; }
 
-    public void Alter(T value)
-        => Set(value);
+    public void Set(T value)
+    {
+        isSet = true;
+        
+        if (!this.value.ValueEquals(value))
+        {
+            this.value = value;
+            changes.OnNext(value);
+        }
+    }
 
     public void Attach(IObservable<T> changes)
         => subscriber.Subscribe(changes, Set);
@@ -87,15 +95,4 @@ public class SourceValue<T> : ObservableValue<T>, ISourceValue<T>, ISourceValue
 
     protected override T GetValue()
         => Value;
-
-    private void Set(T value)
-    {
-        isSet = true;
-        
-        if (!this.value.ValueEquals(value))
-        {
-            this.value = value;
-            changes.OnNext(value);
-        }
-    }
 }

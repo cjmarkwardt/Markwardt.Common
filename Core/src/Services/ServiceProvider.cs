@@ -36,6 +36,18 @@ public static class ServiceProvider
         where T : notnull
         => (T)services.GetRequiredService(typeof(TTag));
 
+    public static object Create(this IServiceProvider services, Type type, Func<IService, IService>? configure = null)
+    {
+        configure ??= service => service;
+        return configure(new ConstructorService(type)).Require(services);
+    }
+
+    public static T Create<T>(this IServiceProvider services, Func<IService, IService>? configure = null)
+    {
+        configure ??= service => service;
+        return configure(new ConstructorService(typeof(T))).Require<T>(services);
+    }
+
     public static async ValueTask Start(this IServiceContainer services, Type starter, bool setShared = true, CancellationToken cancellation = default)
     {
         if (setShared)
@@ -43,7 +55,7 @@ public static class ServiceProvider
             SetShared(services);
         }
 
-        await Service.Constructor(starter).Resolve<IStarter>(services).Start(cancellation);
+        await ((IStarter)services.Create(starter)).Start(cancellation);
     }
 
     public static async ValueTask Start<TStarter>(this IServiceContainer services, bool setShared = true, CancellationToken cancellation = default)

@@ -5,6 +5,9 @@ public static class MaybeExtensions
     public static Maybe<T> Maybe<T>(this T value)
         => new(value);
 
+    public static Maybe<T> MaybeCast<T>(this object? value)
+        => new((T)value!);
+
     public static Maybe<T> WhereNotNull<T>(this Maybe<T?> maybe)
         where T : class
         => maybe.Where(x => x is not null).Select(x => x!);

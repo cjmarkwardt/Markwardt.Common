@@ -10,7 +10,7 @@ public abstract class ServiceTag : IServiceTag
     public virtual bool IsCached => true;
 
     public IService GetService()
-        => Service.Delegate(x => GetService(x), IsCached);
+        => new Service(x => Resolve(x)).Cache(IsCached);
 
-    protected abstract object GetService(IServiceProvider services);
+    protected abstract object Resolve(IServiceProvider services);
 }

@@ -84,4 +84,7 @@ public class InvokableMethod : ICustomAttributeProvider
             throw new InvalidOperationException($"No invoker available for {methodBase}");
         }
     }
+
+    public override string? ToString()
+        => $"{methodBase.DeclaringType?.Name}:{methodBase}";
 }

@@ -39,6 +39,6 @@ public static class ConstructorExtensions
         return methods.FirstOrDefault(x => Attribute.IsDefined(x, typeof(DefaultConstructorAttribute))) ?? methods.OfType<ConstructorInfo>().OrderByDescending(m => m.GetParameters().Length).FirstOrDefault();
     }
 
-    public static MethodBase? FindConstructor(this Type type, string? name)
+    public static MethodBase? FindConstructor(this Type type, string? name = null)
         => name is null ? type.GetDefaultConstructor() : type.GetDefaultImplementation().GetConstructors().FirstOrDefault(x => x.GetName() == name);
 }

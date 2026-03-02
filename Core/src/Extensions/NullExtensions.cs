@@ -4,16 +4,7 @@ public static class NullExtensions
 {
     public static T NotNull<T>(this T? obj, Func<string>? message = null)
         where T : class
-    {
-        try
-        {
-            return obj ?? throw new InvalidOperationException(message?.Invoke() ?? obj?.GetType().FullName ?? typeof(T).FullName);
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-    }
+        => obj ?? throw new InvalidOperationException(message?.Invoke() ?? obj?.GetType().FullName ?? typeof(T).FullName);
 
     public static T NotNull<T>(this T? obj, string message)
         where T : class

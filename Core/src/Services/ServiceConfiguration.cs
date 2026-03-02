@@ -11,8 +11,8 @@ public static class ServiceConfigurationExtensions
         where T : notnull
         => configuration.Configure(typeof(T), service);
 
-    public static void Configure<T, TImplementation>(this IServiceConfiguration configuration)
+    public static void Configure<T, TImplementation>(this IServiceConfiguration configuration, bool isCached = true)
         where T : notnull
         where TImplementation : notnull
-        => configuration.Configure<T>(Service.Constructor<TImplementation>());
+        => configuration.Configure<T>(new ConstructorService(typeof(TImplementation)).Cache(isCached));
 }

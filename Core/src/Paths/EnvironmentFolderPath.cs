@@ -1,10 +1,10 @@
 namespace Markwardt;
 
 [ServiceType<string>]
-public abstract class EnvironmentFolderPathTag : SimpleTag
+public abstract class EnvironmentFolderPathTag : ServiceTag
 {
     protected abstract Environment.SpecialFolder Folder { get; }
 
-    protected override object Get()
+    protected sealed override object Resolve(IServiceProvider services)
         => Environment.GetFolderPath(Folder);
 }

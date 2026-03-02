@@ -7,7 +7,7 @@ public interface IObservableValue
     IObservable<object?> Changes { get; }
 }
 
-public interface IObservableValue<T> : IObservable<T>
+public interface IObservableValue<out T> : IObservable<T>
 {
     T Value { get; }
 }

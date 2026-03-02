@@ -1,136 +1,63 @@
 namespace Markwardt;
 
-public interface IService : IDisposable, IAsyncDisposable
+public interface IService : IDisposable
 {
-    object Resolve(IServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null);
+    object? Resolve(IServiceProvider services, IEnumerable<ServiceOverride> overrides);
 }
 
 public static class ServiceExtensions
 {
-    public static T Resolve<T>(this IService service, IServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null)
-        => (T) service.Resolve(services, parameters, properties);
+    public static IService AsService(this object? instance, bool dispose = true)
+        => new InstanceService(instance, dispose);
+
+    public static Maybe<T> Resolve<T>(this IService service, IServiceProvider services, IEnumerable<ServiceOverride> overrides)
+        => service.Resolve(services, overrides).NullToMaybe().Cast<T>();
+
+    public static object? Resolve(this IService service, IServiceProvider services)
+        => service.Resolve(services, []);
+
+    public static Maybe<T> Resolve<T>(this IService service, IServiceProvider services)
+        => service.Resolve<T>(services, []);
+
+    public static object Require(this IService service, IServiceProvider services, IEnumerable<ServiceOverride> overrides)
+        => service.Resolve(services, overrides) ?? throw new InvalidOperationException("Service resolution failed");
+
+    public static T Require<T>(this IService service, IServiceProvider services, IEnumerable<ServiceOverride> overrides)
+        => (T) service.Require(services, overrides);
+
+    public static object Require(this IService service, IServiceProvider services)
+        => service.Require(services, []);
+
+    public static T Require<T>(this IService service, IServiceProvider services)
+        => service.Require<T>(services, []);
+
+    public static IService Override(this IService service, params IEnumerable<ServiceOverride> overrides)
+        => new OverrideService(service, overrides);
+
+    public static IService Cache(this IService service, bool isCached = true)
+        => isCached ? new CacheService(service) : service;
+
+    public static IService SkipDispose(this IService service)
+        => new SkipDisposeService(service);
+
+    public static IService Factory(this IService service, Type factory, Func<ParameterInfo, ServiceParameter, bool?>? isMatch = null)
+        => new FactoryService(factory, service, isMatch);
 }
 
-public class Service(Func<IServiceProvider, IReadOnlyDictionary<ParameterInfo, object?>?, IReadOnlyDictionary<PropertyInfo, object?>?, object> resolve) : BaseAsyncDisposable, IService
+public class Service(Func<IServiceProvider, IEnumerable<ServiceOverride>, object?> resolve) : BaseAsyncDisposable, IService
 {
-    public static IService Delegate(Func<IServiceProvider, IReadOnlyDictionary<ParameterInfo, object?>?, IReadOnlyDictionary<PropertyInfo, object?>?, object> resolve, bool isCached = true)
-        => new Service(resolve).AsCached(isCached);
+    public static IService Empty => EmptyService.Instance;
+    public static IService Suppress => SuppressService.Instance;
 
-    public static IService Delegate(Func<IServiceProvider, object> resolve, bool isCached = true)
-        => Delegate((services, _, _) => resolve(services), isCached);
+    public Service(Func<IServiceProvider, object?> resolve)
+        : this((services, _) => resolve(services)) { }
 
-    public static IService Delegate(Func<object> resolve, bool isCached = true)
-        => Delegate(_ => resolve(), isCached);
+    public Service(Func<object?> resolve)
+        : this(_ => resolve()) { }
+        
+    public object? Resolve(IServiceProvider services, IEnumerable<ServiceOverride> overrides)
+        => resolve(services, overrides);
 
-    public static IService Instance(object instance, bool isCached = true)
-        => Delegate(_ => instance, isCached);
-
-    public static IService Constructor(InvokableMethod constructor, Action<IServiceConfigurator>? configure = null, bool isCached = true)
-    {
-        ServiceConfigurator builder = new(constructor);
-        configure?.Invoke(builder);
-        return builder.Build().AsCached(isCached);
-    }
-
-    public static IService Constructor(MethodBase constructor, Action<IServiceConfigurator>? configure = null, bool isCached = true)
-        => Constructor(new InvokableMethod(constructor), configure, isCached);
-
-    public static IService Constructor(Type type, string? constructorName, Action<IServiceConfigurator>? configure = null, bool isCached = true)
-        => Constructor(new InvokableMethod(type.FindConstructor(constructorName).NotNull()), configure, isCached);
-
-    public static IService Constructor(Type type, Action<IServiceConfigurator>? configure = null, bool isCached = true)
-        => Constructor(type, null, configure, isCached);
-
-    public static IService Constructor<T>(string? constructorName, Action<IServiceConfigurator>? configure = null, bool isCached = true)
-        where T : notnull
-        => Constructor(typeof(T), constructorName, configure, isCached);
-
-    public static IService Constructor<T>(Action<IServiceConfigurator>? configure = null, bool isCached = true)
-        where T : notnull
-        => Constructor(typeof(T), configure, isCached);
-
-    public static IService Factory(Type factory, InvokableMethod constructor, Action<IServiceConfigurator>? configure = null, IReadOnlyDictionary<ParameterInfo, ParameterInfo>? parameterMappings = null, bool isCached = true)
-        => Delegate(services =>
-        {
-            if (constructor.ResultType == typeof(void))
-            {
-                throw new InvalidOperationException($"Constructor must have a result type");
-            }
-
-            MethodInfo factoryInvocation = factory.GetDelegateInvocation() ?? throw new InvalidOperationException($"Factory type {factory} is not a delegate");
-
-            Type factoryResult = factoryInvocation.ReturnType.GetResultType();
-            if (!constructor.ResultType.IsAssignableTo(factoryResult))
-            {
-                throw new InvalidOperationException($"Constructor result type {constructor.ResultType} cannot be assigned to factory result type {factoryResult}");
-            }
-
-            Dictionary<ParameterInfo, ParameterInfo> resolvedParameters = parameterMappings?.ToDictionary() ?? [];
-            foreach (ParameterInfo unresolvedParameter in factoryInvocation.GetParameters().Where(x => !resolvedParameters.ContainsKey(x)))
-            {
-                resolvedParameters[unresolvedParameter] = constructor.Parameters.FirstOrDefault(x => x.Name == unresolvedParameter.Name) ?? throw new InvalidOperationException($"No matching constructor parameter found for factory parameter {unresolvedParameter}");
-            }
-
-            IService service = Constructor(constructor, configure, false);
-            return Delegator.CreateDelegate(factory, arguments => service.Resolve(services, arguments.ToDictionary(x => resolvedParameters[x.Key], x => x.Value), null));
-        }, isCached);
-
-    public static IService Factory(Type factory, MethodBase constructor, Action<IServiceConfigurator>? configure = null, IReadOnlyDictionary<ParameterInfo, ParameterInfo>? parameterMappings = null, bool isCached = true)
-        => Factory(factory, new InvokableMethod(constructor), configure, parameterMappings, isCached);
-
-    public static IService Factory(Type factory, Type? type = null, string? constructorName = null, Action<IServiceConfigurator>? configure = null, IReadOnlyDictionary<ParameterInfo, ParameterInfo>? parameterMappings = null, bool isCached = true)
-    {
-        type ??= factory.GetCustomAttribute<FactoryResultAttribute>()?.Result;
-        type ??= factory.GetDelegateResult() ?? throw new InvalidOperationException($"Factory type {factory} must be a delegate type");
-        return Factory(factory, type?.FindConstructor(constructorName) ?? throw new InvalidOperationException($"Type {type} must have a default constructor"), configure, parameterMappings, isCached);
-    }
-
-    public static IService Factory<TFactory>(Type? type = null, string? constructorName = null, Action<IServiceConfigurator>? configure = null, IReadOnlyDictionary<ParameterInfo, ParameterInfo>? parameterMappings = null, bool isCached = true)
-        where TFactory : notnull, Delegate
-        => Factory(typeof(TFactory), type, constructorName, configure, parameterMappings, isCached);
-
-    public static IService Factory<TFactory, T>(string? constructorName = null, Action<IServiceConfigurator>? configure = null, IReadOnlyDictionary<ParameterInfo, ParameterInfo>? parameterMappings = null, bool isCached = true)
-        where TFactory : notnull, Delegate
-        where T : notnull
-        => Factory(typeof(TFactory), typeof(T), constructorName, configure, parameterMappings, isCached);
-
-    public static IService Route(Type tag, bool isCached = false)
-        => Delegate(services => services.GetRequiredService(tag), isCached);
-
-    public static IService Route<TTag>(bool isCached = false)
-        where TTag : notnull
-        => Delegate(services => services.GetRequiredService<TTag>(), isCached);
-
-    public static IService Source<T>(Func<T, object> resolve, Type? tag1 = null, bool isCached = false)
-        where T : notnull
-        => Delegate(services => resolve((T) services.GetRequiredService(tag1 ?? typeof(T))), isCached);
-
-    public static IService Source<T1, T2>(Func<T1, T2, object> resolve, Type? tag1 = null, Type? tag2 = null, bool isCached = false)
-        where T1 : notnull
-        where T2 : notnull
-        => Delegate(services => resolve((T1) services.GetRequiredService(tag1 ?? typeof(T1)), (T2) services.GetRequiredService(tag2 ?? typeof(T2))), isCached);
-
-    public static IService Source<T1, T2, T3>(Func<T1, T2, T3, object> resolve, Type? tag1 = null, Type? tag2 = null, Type? tag3 = null, bool isCached = false)
-        where T1 : notnull
-        where T2 : notnull
-        where T3 : notnull
-        => Delegate(services => resolve((T1) services.GetRequiredService(tag1 ?? typeof(T1)), (T2) services.GetRequiredService(tag2 ?? typeof(T2)), (T3) services.GetRequiredService(tag3 ?? typeof(T3))), isCached);
-
-    public static IService Source<T1, T2, T3, T4>(Func<T1, T2, T3, T4, object> resolve, Type? tag1 = null, Type? tag2 = null, Type? tag3 = null, Type? tag4 = null, bool isCached = false)
-        where T1 : notnull
-        where T2 : notnull
-        where T3 : notnull
-        where T4 : notnull
-        => Delegate(services => resolve((T1) services.GetRequiredService(tag1 ?? typeof(T1)), (T2) services.GetRequiredService(tag2 ?? typeof(T2)), (T3) services.GetRequiredService(tag3 ?? typeof(T3)), (T4) services.GetRequiredService(tag4 ?? typeof(T4))), isCached);
-
-    public static IService Source<T1, T2, T3, T4, T5>(Func<T1, T2, T3, T4, T5, object> resolve, Type? tag1 = null, Type? tag2 = null, Type? tag3 = null, Type? tag4 = null, Type? tag5 = null, bool isCached = false)
-        where T1 : notnull
-        where T2 : notnull
-        where T3 : notnull
-        where T4 : notnull
-        where T5 : notnull
-        => Delegate(services => resolve((T1) services.GetRequiredService(tag1 ?? typeof(T1)), (T2) services.GetRequiredService(tag2 ?? typeof(T2)), (T3) services.GetRequiredService(tag3 ?? typeof(T3)), (T4) services.GetRequiredService(tag4 ?? typeof(T4)), (T5) services.GetRequiredService(tag5 ?? typeof(T5))), isCached);
-
-    public object Resolve(IServiceProvider services, IReadOnlyDictionary<ParameterInfo, object?>? parameters = null, IReadOnlyDictionary<PropertyInfo, object?>? properties = null)
-        => resolve(services, parameters, properties);
+    public override string ToString()
+        => "Service";
 }

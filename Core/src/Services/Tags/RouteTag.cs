@@ -3,6 +3,8 @@ namespace Markwardt;
 public class RouteTag<TService> : IServiceTag
     where TService : class
 {
+    public virtual bool IsRequired => true; 
+
     public IService GetService()
-        => Service.Route<TService>();
+        => new RouteService(typeof(TService), IsRequired);
 }

@@ -1,15 +1,15 @@
 namespace Markwardt;
 
-public interface IServiceContainer : IServiceProvider, IServiceConfiguration, IDisposable, IAsyncDisposable;
+public interface IServiceContainer : IServiceProvider, IServiceConfiguration, IDisposable;
 
-public sealed class ServiceContainer(IServiceSource source) : BaseAsyncDisposable, IServiceContainer
+public sealed class ServiceContainer(IServiceSource? source = null) : BaseDisposable, IServiceContainer
 {
-    public ServiceContainer()
-        : this(new AutoHandler()) { }
+    private readonly Subject<ServiceResolution> resolved = new();
+    public IObservable<ServiceResolution> Resolved => resolved;
+
+    private readonly IServiceSource source = source ?? new AutoHandler();
 
     private readonly Dictionary<Type, IService> services = [];
-
-    private bool isDisposed;
 
     public void Configure(Type tag, IService? service)
     {
@@ -25,42 +25,38 @@ public sealed class ServiceContainer(IServiceSource source) : BaseAsyncDisposabl
 
     public object? GetService(Type tag)
     {
-        ObjectDisposedException.ThrowIf(isDisposed, this);
+        this.VerifyUndisposed();
+
+        object? value;
+        string? sourceDescription = null;
+        IService? service = null;
 
         if (tag.Equals(typeof(IServiceProvider)))
         {
-            return this;
+            value = this;
         }
-        else if (services.TryGetValue(tag, out IService? service))
+        else if (services.TryGetValue(tag, out service))
         {
-            return service.Resolve(this);
+            value = service.Resolve(this);
         }
-        else if (source.TryGetService(tag).TryNotNull(out service))
+        else if (source.TryGetService(tag, out sourceDescription).TryNotNull(out service))
         {
             services.Add(tag, service);
-            return service.Resolve(this);
+            value = service.Resolve(this);
         }
         else
         {
-            return null;
+            value = null;
         }
+
+        resolved.OnNext(new ServiceResolution(tag, value, sourceDescription, service));
+        return value;
     }
 
     protected override void OnDispose()
     {
-        if (!isDisposed)
-        {
-            isDisposed = true;
-            services.Values.ForEach(x => x.Dispose());
-        }
-    }
+        base.OnDispose();
 
-    protected override async ValueTask OnAsyncDispose()
-    {
-        if (!isDisposed)
-        {
-            isDisposed = true;
-            await Task.WhenAll(services.Values.Select(x => x.DisposeAsync().AsTask()));
-        }
+        services.Values.ForEach(x => x.Dispose());
     }
 }
