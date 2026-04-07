@@ -1,13 +1,13 @@
 namespace Markwardt;
 
-public interface ISteamIdentifier
+internal interface ISteamIdentifier
 {
     ulong? GetId();
     string? GetName();
     string? GetName(ulong id);
 }
 
-public class SteamIdentifier : ISteamIdentifier
+internal class SteamIdentifier : ISteamIdentifier
 {
     public required ISteamInitializer Initializer { get; init; }
 

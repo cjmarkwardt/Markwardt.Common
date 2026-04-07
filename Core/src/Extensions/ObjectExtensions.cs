@@ -44,4 +44,10 @@ public static class ObjectExtensions
 
         return target;
     }
+
+    public static T FluentCondition<T>(this T instance, Func<T, bool> condition, Func<T, T> conditionalTarget)
+        => condition(instance) ? conditionalTarget(instance) : instance;
+
+    public static T FluentCondition<T>(this T instance, bool condition, Func<T, T> conditionalTarget)
+        => instance.FluentCondition(_ => condition, conditionalTarget);
 }

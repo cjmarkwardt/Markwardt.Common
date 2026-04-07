@@ -17,6 +17,12 @@ global using System.Collections;
 global using System.Dynamic;
 global using System.Reactive;
 global using System.Runtime.CompilerServices;
+global using System.ComponentModel;
+global using System.Text.Json.Nodes;
+global using System.Text.Json.Schema;
+global using System.Threading.Tasks.Dataflow;
+global using System.Reactive.Threading.Tasks;
+global using System.Runtime.Serialization;
 
 global using Markwardt;
 

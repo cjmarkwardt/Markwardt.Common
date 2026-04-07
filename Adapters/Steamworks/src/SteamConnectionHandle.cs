@@ -1,7 +1,9 @@
 namespace Markwardt;
 
-public class SteamConnectionHandle(HSteamNetConnection value) : Finalized<HSteamNetConnection>(value)
+internal class SteamConnectionHandle(HSteamNetConnection value) : Finalized<HSteamNetConnection>(value)
 {
+    private readonly nint[] readBuffer = new nint[20];
+
     public unsafe EResult Write(ReadOnlySpan<byte> data, int sendFlags)
     {
         fixed (byte* pointer = data)
@@ -10,23 +12,28 @@ public class SteamConnectionHandle(HSteamNetConnection value) : Finalized<HSteam
         }
     }
 
-    public bool Read(nint[] buffer, MemoryConsumer<byte> receive)
+    public bool Read(Action<ReadOnlySpan<byte>> receive)
     {
-        int messageCount = SteamNetworkingSockets.ReceiveMessagesOnConnection(Value, buffer, buffer.Length);
-        if (messageCount < 0)
+        while (true)
         {
-            return false;
-        }
-        else if (messageCount > 0)
-        {
-            for (int i = 0; i < messageCount; i++)
+            int messageCount = SteamNetworkingSockets.ReceiveMessagesOnConnection(Value, readBuffer, readBuffer.Length);
+            if (messageCount < 0)
             {
-                using SteamMessage message = new(buffer[i]);
-                message.Read(receive);
+                return false;
+            }
+            else if (messageCount == 0)
+            {
+                return true;
+            }
+            else
+            {
+                for (int i = 0; i < messageCount; i++)
+                {
+                    using SteamMessageHandle message = new(readBuffer[i]);
+                    receive(message.Data);
+                }
             }
         }
-
-        return true;
     }
 
     protected override void Release(HSteamNetConnection value)

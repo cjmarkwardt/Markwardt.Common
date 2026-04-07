@@ -1,27 +1,27 @@
 namespace Markwardt;
 
-public interface IEvent : IObservable
+public interface IEvent : IObservable<Unit>
 {
     void Invoke();
 }
 
 public class Event : IEvent
 {
-    public static Event FromSubject(ISubject<bool> subject)
+    public static Event FromSubject(ISubject<Unit> subject)
         => new(subject);
 
-    private Event(ISubject<bool> subject)
+    private Event(ISubject<Unit> subject)
         => this.subject = subject;
 
     public Event()
-        : this(new Subject<bool>()) { }
+        : this(new Subject<Unit>()) { }
 
-    private readonly ISubject<bool> subject;
+    private readonly ISubject<Unit> subject;
 
     public void Invoke()
-        => subject.OnNext(true);
+        => subject.OnNext(Unit.Default);
 
-    public IDisposable Subscribe(IObserver<bool> observer)
+    public IDisposable Subscribe(IObserver<Unit> observer)
         => subject.Subscribe(observer);
 }
 

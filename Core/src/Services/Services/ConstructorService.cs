@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-public class ConstructorService(InvokableMethod constructor) : BaseAsyncDisposable, IService
+public class ConstructorService(InvokableMethod constructor) : BaseDisposable, IService
 {
     public ConstructorService(MethodBase constructor)
         : this(new InvokableMethod(constructor)) { }

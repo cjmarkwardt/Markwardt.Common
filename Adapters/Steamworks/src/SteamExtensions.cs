@@ -2,7 +2,13 @@ namespace Markwardt;
 
 public static class SteamExtensions
 {
-    public static async ValueTask<Failable<T>> Callback<T>(Func<T, bool> filter, CancellationToken cancellation = default)
+    public static IMessageHost<TSend> HostSteam<TSend>(this IMessageProtocol<TSend, ReadOnlyMemory<byte>> protocol, int port)
+        => protocol.Host(new SteamHoster(port));
+
+    public static IMessageConnection<TSend> ConnectSteam<TSend>(this IMessageProtocol<TSend, ReadOnlyMemory<byte>> protocol, SteamTarget target, int port)
+        => protocol.Connect(new SteamConnector(target, port));
+
+    internal static async ValueTask<Failable<T>> Callback<T>(Func<T, bool> filter, CancellationToken cancellation = default)
     {
         TaskCompletionSource<Failable<T>> completion = new();
 
@@ -26,7 +32,7 @@ public static class SteamExtensions
         }
     }
 
-    public static async ValueTask<Failable<T>> Consume<T>(this SteamAPICall_t call, CancellationToken cancellation = default)
+    internal static async ValueTask<Failable<T>> Consume<T>(this SteamAPICall_t call, CancellationToken cancellation = default)
     {
         TaskCompletionSource<Failable<T>> completion = new();
         using CallResult<T> listener = CallResult<T>.Create((result, isFailed) => completion.SetResult(isFailed ? Failable.Fail<T>("Steam call failed") : result));

@@ -7,27 +7,25 @@ public interface ITrackedDisposable : IVisibleDisposable
 
 public static class TrackedDisposableExtensions
 {
-    public static async void RunInBackground(this ITrackedDisposable disposable, Func<CancellationToken, ValueTask> action, CancellationToken cancellation = default)
+    public static IDisposable RunInBackground(this ITrackedDisposable disposable, Func<CancellationToken, ValueTask> action, CancellationToken cancellation = default)
     {
-        try
+        CancellationTokenSource directCancellation = new();
+
+        async void Run()
         {
-            using CancellationTokenSource linkedCancellation = disposable.Disposal.Link(cancellation);
-            await action(linkedCancellation.Token);
-        }
-        catch (OperationCanceledException) { }
-    }
-
-    public static void LoopInBackground(this ITrackedDisposable disposable, Func<CancellationToken, Action, ValueTask> action, CancellationToken cancellation = default)
-        => disposable.RunInBackground(async cancellation =>
-        {
-            bool run = true;
-
-            void Stop()
-                => run = false;
-
-            while (run && !disposable.IsDisposed)
+            try
             {
-                await action(cancellation, Stop);
+                using CancellationTokenSource linkedCancellation = disposable.Disposal.Link(cancellation, directCancellation.Token);
+                await action(linkedCancellation.Token);
             }
-        }, cancellation);
+            catch (OperationCanceledException) { }
+            finally
+            {
+                directCancellation.Dispose();
+            }
+        }
+
+        Run();
+        return directCancellation.ToDisposable();
+    }
 }

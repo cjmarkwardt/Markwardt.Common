@@ -2,6 +2,44 @@ namespace Markwardt;
 
 public static class EnumerableExtensions
 {
+    public static IEnumerable<(T, int)> WithIndex<T>(this IEnumerable<T> enumerable)
+        => enumerable.Select((x, i) => (x, i));
+
+    public static IEnumerable<ReadOnlyMemory<T>> Subdivide<T>(this ReadOnlyMemory<T> data, int size)
+    {
+        for (int i = 0; i < data.Length; i += size)
+        {
+            yield return data.Slice(i, Math.Min(size, data.Length - i));
+        }
+    }
+
+    public static IEnumerable<(T Item, bool IsFirst, bool IsLast)> WithFirstLast<T>(this IEnumerable<T> enumerable)
+    {
+        bool isFirst = true;
+        Maybe<T> last = default;
+        foreach (T value in enumerable)
+        {
+            if (last.HasValue)
+            {
+                yield return (last.Value, isFirst, false);
+                isFirst = false;
+            }
+
+            last = value.Maybe();
+        }
+
+        if (last.HasValue)
+        {
+            yield return (last.Value, isFirst, true);
+        }
+    }
+
+    public static int GetPercentageIndex<T>(this IReadOnlyCollection<T> collection, float value)
+        => Math.Clamp((int)Math.Floor(value * collection.Count), 0, collection.Count - 1);
+
+    public static T GetPercentageItem<T>(this IReadOnlyList<T> list, float value)
+        => list[list.GetPercentageIndex(value)];
+        
     public static Maybe<T> MaybeFirst<T>(this IEnumerable<T> enumerable, Func<T, bool> predicate)
     {
         foreach (T item in enumerable)
@@ -42,13 +80,44 @@ public static class EnumerableExtensions
         yield return item;
     }
 
-    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> action)
+    public static void ForEach<T, TState>(this IEnumerable<T> enumerable, TState state, Action<T, int, Flag, TState> action, bool reverse = false)
     {
-        foreach (T item in enumerable)
+        if (enumerable is IReadOnlyList<T> list)
         {
-            action(item);
+            Indexer<T> indexer = list.NewIndexer();
+            indexer.For(state, reverse, action);
+            indexer.Recycle();
+        }
+        else
+        {
+            int index = reverse ? enumerable.Count() - 1 : 0;
+            int step = reverse ? -1 : 1;
+
+            Flag flag = Flag.New();
+
+            foreach (T item in reverse ? enumerable.Reverse() : enumerable)
+            {
+                action(item, index, flag, state);
+                index += step;
+
+                if (flag.IsSet)
+                {
+                    break;
+                }
+            }
+
+            flag.Recycle();
         }
     }
+
+    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T, int, Flag> action, bool reverse = false)
+        => enumerable.ForEach<T, object?>(null, (x, index, flag, _) => action(x, index, flag), reverse);
+
+    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T, int> action, bool reverse = false)
+        => enumerable.ForEach<T, object?>(null, (x, index, _, _) => action(x, index), reverse);
+
+    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> action, bool reverse = false)
+        => enumerable.ForEach<T, object?>(null, (x, _, _, _) => action(x), reverse);
 
     public static int IndexOf<T>(this IEnumerable<T> enumerable, T value)
     {

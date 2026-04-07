@@ -1,78 +1,46 @@
 namespace Markwardt;
 
-public class LiteNetConnector(string host, int port, string? key = null) : INetworkConnector
+public class LiteNetConnector(string host, int port, string? key = null) : IMessageConnector<ReadOnlyMemory<byte>>
 {
-    public INetworkLink CreateLink()
-        => new Link(host, port, key);
+    public IMessageConnection<ReadOnlyMemory<byte>> Connect()
+        => new Connection(host, port, key);
 
-    private sealed class Link : NetworkLink, INetEventListener
+    private sealed class Connection : MessageConnection<ReadOnlyMemory<byte>>, INetEventListener
     {
-        public Link(string host, int port, string? key)
+        public Connection(string host, int port, string? key = null)
         {
-            this.host = host;
-            this.port = port;
-            this.key = key;
-            network = new(this);
-        }
-
-        private readonly TaskCompletionSource connect = new();
-        private readonly string host;
-        private readonly int port;
-        private readonly string? key;
-        private readonly NetManager network;
-        
-        private bool isConnecting;
-
-        public override async ValueTask Run(CancellationToken cancellation = default)
-        {
+            network = new NetManager(this);
             network.Start();
-            await network.Run(cancellation);
+            peer = network.Connect(host, port, key ?? string.Empty);
+
+            this.RunInBackground(async cancellation => await network.Listen(cancellation));
         }
 
-        public override async ValueTask Connect(CancellationToken cancellation = default)
-        {
-            isConnecting = true;
-            network.Connect(host, port, key ?? string.Empty);
-            await connect.Task.WaitAsync(cancellation);
-            isConnecting = false;
-        }
+        private readonly NetManager network;
+        private readonly NetPeer peer;
 
-        public override ValueTask Send(ReadOnlyMemory<byte> data, NetworkReliability mode, CancellationToken cancellation = default)
-        {
-            network.SendToAll(data.Span, mode.GetDeliveryMethod());
-            return ValueTask.CompletedTask;
-        }
+        protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
+            => peer.Send(message, content);
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
             => request.Reject();
 
         void INetEventListener.OnPeerConnected(NetPeer peer)
-            => connect.SetResult();
-
-        void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
-            => Receive(reader.RawData.AsMemory(reader.UserDataOffset, reader.UserDataSize));
+            => SetConnected();
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
-        {
-            NetworkException exception = new(disconnectInfo.Reason.ToString());
+            => SetDisconnected(new RemoteDisconnectException(disconnectInfo.Reason.ToString()));
 
-            if (isConnecting)
-            {
-                connect.SetException(exception);
-            }
-            else
-            {
-                Drop(exception);
-            }
-        }
+        void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
+            => TriggerReceived(reader.ToMessage());
 
         void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketError) { }
-        void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency) { }
         void INetEventListener.OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType) { }
+        void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency) { }
 
-        protected override void OnDispose()
+        protected override void OnDisconnected(Exception? exception)
         {
-            base.OnDispose();
+            base.OnDisconnected(exception);
 
             network.DisconnectAll();
             network.Stop();

@@ -1,0 +1,13 @@
+global using System.Diagnostics;
+global using System.Net;
+global using System.Net.Sockets;
+global using System.Reactive;
+global using System.Reactive.Subjects;
+global using System.Text;
+global using System.Text.Json;
+global using System.IO.Compression;
+global using System.Reflection;
+global using System.Reactive.Linq;
+global using System.Runtime.CompilerServices;
+global using System.Text.Json.Serialization;
+global using System.Reactive.Disposables;

@@ -44,7 +44,7 @@ public static class ServiceExtensions
         => new FactoryService(factory, service, isMatch);
 }
 
-public class Service(Func<IServiceProvider, IEnumerable<ServiceOverride>, object?> resolve) : BaseAsyncDisposable, IService
+public class Service(Func<IServiceProvider, IEnumerable<ServiceOverride>, object?> resolve) : BaseDisposable, IService
 {
     public static IService Empty => EmptyService.Instance;
     public static IService Suppress => SuppressService.Instance;

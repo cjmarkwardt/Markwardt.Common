@@ -1,95 +1,89 @@
 namespace Markwardt;
 
-public class LiteNetHoster(int port, string? key = null) : INetworkHoster
+public class LiteNetHoster(int port, string? key = null) : IMessageHoster<ReadOnlyMemory<byte>>
 {
-    public INetworkListener CreateListener()
-        => new Listener(port, key);
+    public IMessageHost<ReadOnlyMemory<byte>> Host()
+        => new Server(port, key);
 
-    private sealed class Listener : NetworkListener, INetEventListener
+    private sealed class Server : BaseMessageHost<ReadOnlyMemory<byte>>, INetEventListener
     {
-        public Listener(int port, string? key)
+        public Server(int port, string? key = null)
         {
-            this.port = port;
-            this.key = key;
-            network = new(this);
-        }
-
-        private readonly int port;
-        private readonly string? key;
-        private readonly NetManager network;
-        private readonly Dictionary<NetPeer, Link> links = [];
-
-        public override async ValueTask Run(CancellationToken cancellation = default)
-        {
+            this.key = key ?? string.Empty;
+            network = new NetManager(this);
             network.Start(port);
-            await network.Run(cancellation);
+
+            this.RunInBackground(async cancellation => await network.Listen(cancellation));
         }
+
+        private readonly string key;
+        private readonly NetManager network;
+        private readonly Dictionary<NetPeer, Connection> connections = [];
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
-        {
-            if (key is null)
-            {
-                request.Accept();
-            }
-            else
-            {
-                request.AcceptIfKey(key);
-            }
-        }
+            => request.AcceptIfKey(key);
 
         void INetEventListener.OnPeerConnected(NetPeer peer)
         {
-            Link link = new(peer);
-            links.Add(peer, link);
-            Connect(link);
+            Connection connection = new(peer);
+            connections.Add(peer, connection);
+            Enqueue(connection);
         }
 
         void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
         {
-            if (links.TryGetValue(peer, out Link? link))
+            if (connections.TryGetValue(peer, out Connection? connection))
             {
-                link.Receive(reader.RawData.AsMemory(reader.UserDataOffset, reader.UserDataSize));
+                connection.Receive(reader);
             }
         }
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
         {
-            if (links.Remove(peer, out Link? link))
+            if (connections.Remove(peer, out Connection? connection))
             {
-                link.Drop(new NetworkException(disconnectInfo.Reason.ToString()));
+                connection.Disconnect(disconnectInfo);
             }
         }
 
-        void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketError) { }
-        void INetEventListener.OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType) { }
+        void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketError) {}
         void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency) { }
-    }
-
-    private sealed class Link(NetPeer peer) : NetworkLink
-    {
-        public override ValueTask Run(CancellationToken cancellation = default)
-            => ValueTask.CompletedTask;
-
-        public override ValueTask Connect(CancellationToken cancellation = default)
-            => ValueTask.CompletedTask;
-
-        public override ValueTask Send(ReadOnlyMemory<byte> data, NetworkReliability mode, CancellationToken cancellation = default)
-        {
-            peer.Send(data.Span, mode.GetDeliveryMethod());
-            return ValueTask.CompletedTask;
-        }
-
-        public new void Receive(ReadOnlyMemory<byte> data)
-            => base.Receive(data);
-
-        public new void Drop(Exception exception)
-            => base.Drop(exception);
+        void INetEventListener.OnNetworkReceiveUnconnected(IPEndPoint remoteEndPoint, NetPacketReader reader, UnconnectedMessageType messageType) { }
 
         protected override void OnDispose()
         {
             base.OnDispose();
 
-            peer.Disconnect();
+            network.DisconnectAll();
+            network.Stop();
+        }
+
+        private sealed class Connection : MessageConnection<ReadOnlyMemory<byte>>
+        {
+            public Connection(NetPeer peer)
+            {
+                this.peer = peer;
+                
+                SetConnected();
+            }
+
+            private readonly NetPeer peer;
+            
+            public void Receive(NetPacketReader reader)
+                => TriggerReceived(reader.ToMessage());
+
+            public void Disconnect(DisconnectInfo info)
+                => SetDisconnected(new RemoteDisconnectException(info.Reason.ToString()));
+
+            protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
+                => peer.Send(message, content);
+
+            protected override void OnDisconnected(Exception? exception)
+            {
+                base.OnDisconnected(exception);
+
+                peer.Disconnect();
+            }
         }
     }
 }

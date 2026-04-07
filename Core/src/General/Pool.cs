@@ -1,89 +1,37 @@
 namespace Markwardt;
 
-public interface IPool
-{
-    object Rent(Type type);
-
-    void Return(object value);
-    
-    void Clear(Type type);
-
-    void Clear();
-}
-
 public interface IPool<T>
 {
-    T Rent();
-    void Return(T value);
-    void Clear();
+    T Get();
+    void Recycle(T item);
 }
 
 public static class PoolExtensions
 {
-    public static T Rent<T>(this IPool pool)
-        where T : notnull
-        => (T)pool.Rent(typeof(T));
-
-    public static void Clear<T>(this IPool pool)
-        where T : notnull
-        => pool.Clear(typeof(T));
+    public static IRecyclerPool<T> CreateRecyclerPool<T>(this IPool<T> pool)
+        => new RecyclerPool<T>(pool);
 }
 
-public class Pool(Func<Type, object> create, Action<object>? reset = null) : IPool
+public class Pool<T>(Func<T> factory, Action<T>? reset = null, int? retention = null) : IPool<T>
 {
-    public static Pool Shared { get; } = new(x => Activator.CreateInstance(x) ?? throw new InvalidOperationException(), x => (x as IResettable)?.Reset());
+    private readonly Queue<T> items = [];
 
-    private readonly Dictionary<Type, Pool<object>> pools = [];
-
-    public object Rent(Type type)
+    public T Get()
     {
-        if (!pools.TryGetValue(type, out Pool<object>? pool))
+        if (!items.TryDequeue(out T? item))
         {
-            pool = new(() => create(type), reset);
-            pools.Add(type, pool);
+            item = factory();
         }
 
-        return pool.Rent();
+        return item;
     }
 
-    public void Return(object value)
+    public void Recycle(T item)
     {
-        if (pools.TryGetValue(value.GetType(), out Pool<object>? pool))
+        if (items.Count < retention)
         {
-            pool.Return(value);
+            reset?.Invoke(item);
+            items.Enqueue(item);
         }
     }
-
-    public void Clear(Type type)
-        => pools.Remove(type);
-
-    public void Clear()
-        => pools.Clear();
-}
-
-public class Pool<T>(Func<T> create, Action<T>? reset = null) : IPool<T>
-    where T : notnull
-{
-    private readonly Queue<T> queue = [];
-
-    public T Rent()
-    {
-        if (queue.TryDequeue(out T? value))
-        {
-            return value;
-        }
-        else
-        {
-            return create();
-        }
-    }
-
-    public void Return(T value)
-    {
-        reset?.Invoke(value);
-        queue.Enqueue(value);
-    }
-
-    public void Clear()
-        => queue.Clear();
 }

@@ -12,4 +12,7 @@ public static class DictionaryExtensions
 
     public static Maybe<TValue> MaybeGetValue<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key)
         => dictionary.TryGetValue(key, out TValue? value) ? value.Maybe() : default;
+
+    public static void Overwrite<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IEnumerable<KeyValuePair<TKey, TValue>> pairs)
+        => pairs.ForEach(x => dictionary[x.Key] = x.Value);
 }

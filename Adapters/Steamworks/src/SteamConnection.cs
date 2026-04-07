@@ -1,49 +1,66 @@
 namespace Markwardt;
 
-public class SteamConnection(INetworkConnectionController controller) : BaseDisposable
+internal class SteamConnection : MessageConnection<ReadOnlyMemory<byte>>
 {
-    public SteamConnection(INetworkConnectionController controller, SteamConnectionHandle handle)
-        : this(controller)
-        => this.handle = handle;
-
-    private SteamConnectionHandle? handle;
-    
-    public HSteamNetConnection Handle => handle.NotNull().Value;
-
-    public void Initialize(SteamConnectionHandle handle)
+    private static SteamConnectionHandle Connect(SteamTarget target, int port)
     {
-        if (this.handle is not null)
-        {
-            throw new InvalidOperationException("Already initialized");
-        }
-
-        this.handle = handle;
+        SteamNetworkingIdentity id = target.Id;
+        return new(SteamNetworkingSockets.ConnectP2P(ref id, port, 0, []));
     }
 
-    public async ValueTask Run(CancellationToken cancellation)
+    public SteamConnection(SteamConnectionHandle handle)
     {
-        nint[] readBuffer = new nint[100];
+        this.handle = handle.DisposeWith(this);
+        Callback<SteamNetConnectionStatusChangedCallback_t>.Create(OnConnectionStatusChanged).DisposeWith(this);
 
+        this.RunInBackground(Run);
+    }
+
+    public SteamConnection(SteamTarget target, int port = 0)
+        : this(Connect(target, port)) { }
+
+    private readonly SteamConnectionHandle handle;
+
+    protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
+    {
+        EResult result = handle.Write(content.Span, message.Reliability is Reliability.Unreliable ? 0 : 8);
+        if (result is not EResult.k_EResultOK)
+        {
+            SetDisconnected(new RemoteDisconnectException($"Failed to send ({result})"));
+        }
+    }
+
+    private void OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t callback)
+    {
+        if (callback.m_hConn == handle.Value)
+        {
+            if (callback.m_info.m_eState is ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_Connected)
+            {
+                SetConnected();
+            }
+            else if (callback.m_info.m_eState is ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_ClosedByPeer or ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
+            {
+                SetDisconnected(new RemoteDisconnectException(callback.m_info.m_eState.ToString()));
+            }
+        }
+    }
+
+    private async ValueTask Run(CancellationToken cancellation)
+    {
         while (!cancellation.IsCancellationRequested)
         {
-            if (handle is not null && !handle.Read(readBuffer, controller.Receive))
+            void Receive(ReadOnlySpan<byte> data)
             {
-                throw new InvalidOperationException("Failed to receive messages");
+                Buffer<byte> buffer = data.ToBuffer();
+                TriggerReceived(Message.New(buffer.Memory.AsReadOnly(), buffer));
+            }
+
+            if (!handle.Read(Receive))
+            {
+                SetDisconnected(new RemoteDisconnectException("Failed to receive messages"));
             }
 
             await Task.Delay(25, cancellation);
         }
     }
-
-    public void Send(ReadOnlySpan<byte> data, NetworkConstraints constraints)
-    {
-        EResult result = handle!.Write(data, constraints == NetworkConstraints.None ? 0 : 8);
-        if (result is not EResult.k_EResultOK)
-        {
-            controller.Drop(new InvalidOperationException($"Failed to send ({result})"));
-        }
-    }
-
-    protected override void OnDispose()
-        => handle?.Dispose();
 }

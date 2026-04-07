@@ -25,10 +25,18 @@ public static class MaybeExtensions
     public static Maybe<T> NullToMaybe<T>(this T? value)
         where T : class
         => value is not null ? value.Maybe() : default;
+
+    public static Maybe<T> ValueNullToMaybe<T>(this T? value)
+        where T : struct
+        => value.HasValue ? value.Value.Maybe() : default;
         
     public static T? MaybeToNull<T>(this Maybe<T> value)
         where T : class
         => value.ValueOr(null);
+        
+    public static T? MaybeToValueNull<T>(this Maybe<T> value)
+        where T : struct
+        => value.Cast<T?>().ValueOr(null);
 }
 
 public interface IMaybe
@@ -43,7 +51,7 @@ public interface IMaybe<out T>
     T Value { get; }
 }
 
-public readonly struct Maybe<T> : IMaybe<T>, IDisposable, IAsyncDisposable, IEquatable<IMaybe>, IMaybe
+public readonly struct Maybe<T> : IMaybe<T>, IDisposable, IAsyncDisposable, IEquatable<IMaybe>, IEquatable<Maybe<T>>, IMaybe
 {
     public static bool operator ==(Maybe<T> x, Maybe<T> y)
         => x.Equals(y);
@@ -81,6 +89,20 @@ public readonly struct Maybe<T> : IMaybe<T>, IDisposable, IAsyncDisposable, IEqu
         else
         {
             value = default!;
+            return false;
+        }
+    }
+
+    public bool TryGetValue<TCast>([MaybeNullWhen(false)] out TCast value)
+    {
+        if (TryGetValue(out T? outValue) && outValue is TCast casted)
+        {
+            value = casted;
+            return true;
+        }
+        else
+        {
+            value = default;
             return false;
         }
     }
@@ -135,6 +157,9 @@ public readonly struct Maybe<T> : IMaybe<T>, IDisposable, IAsyncDisposable, IEqu
 
     public bool Equals(IMaybe? other)
         => other is not null && ((!HasValue && !other.HasValue) || (HasValue && other.HasValue && Value.ValueEquals(other.Value)));
+
+    public bool Equals(Maybe<T> other)
+        => (!HasValue && !other.HasValue) || (HasValue && other.HasValue && Value.ValueEquals(other.Value));
 
     public override bool Equals(object? obj)
         => obj is IMaybe maybe && Equals(maybe);

@@ -1,15 +1,30 @@
 namespace Markwardt;
 
 [SuppressMessage("", "S3881", Justification = "Custom disposable pattern")]
-public abstract class BaseDisposable : ICompositeDisposable, ITrackedDisposable
+public abstract class BaseDisposable : IParentDisposable, ITrackedDisposable
 {
+    private readonly HashSet<IDisposable> children = [];
     private readonly CancellationTokenSource cancellation = new();
 
     public bool IsDisposed { get; private set; }
 
-    public ISet<object> DisposalTargets { get; } = new HashSet<object>();
-
     public CancellationToken Disposal => cancellation.Token;
+
+    public void AddChildDisposable(object? disposable)
+    {
+        if (disposable is IDisposable typed)
+        {
+            children.Add(typed);
+        }
+    }
+
+    public void RemoveChildDisposable(object? disposable)
+    {
+        if (disposable is IDisposable typed)
+        {
+            children.Remove(typed);
+        }
+    }
 
     public void Dispose()
     {
@@ -22,7 +37,7 @@ public abstract class BaseDisposable : ICompositeDisposable, ITrackedDisposable
             cancellation.Cancel();
             cancellation.Dispose();
 
-            DisposalTargets.ForEach(x => x.TryDispose());
+            children.ForEach(x => x.Dispose());
         }
     }
 
