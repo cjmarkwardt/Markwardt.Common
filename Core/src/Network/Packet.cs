@@ -1,17 +1,17 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class Message : IRecyclable, IPrioritizable, IInspectable
+public class Packet : IRecyclable, IPrioritizable, IInspectable
 {
-    private static readonly Pool<Message> pool = new(() => new());
+    private static readonly Pool<Packet> pool = new(() => new());
 
-    public static Message New(object? content, IRecyclable? recycler = null)
+    public static Packet New(object? content, IRecyclable? recycler = null)
     {
-        Message message = pool.Get();
-        message.SetContent(content, recycler);
-        return message;
+        Packet packet = pool.Get();
+        packet.SetContent(content, recycler);
+        return packet;
     }
 
-    private Message() { }
+    private Packet() { }
 
     private readonly Dictionary<IInspectKey, object> inspections = [];
 
@@ -21,7 +21,7 @@ public class Message : IRecyclable, IPrioritizable, IInspectable
     public int Priority { get; set; }
     public Reliability Reliability { get; set; }
     public IRecyclable? Recycler { get; set; }
-    public IMessageSender? Responder { get; set; }
+    public ISender? Responder { get; set; }
     public object? Source { get; set; }
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspections;
@@ -36,10 +36,10 @@ public class Message : IRecyclable, IPrioritizable, IInspectable
     public T GetContent<T>()
         => (T)Content!;
 
-    public IMessageSender<T>? GetResponder<T>()
-        => Responder is null ? null : new MessageSender<T>(Responder);
+    public Packet<T> AsContent<T>()
+        => new(this);
 
-    public Message Configure(Action<Message>? configure)
+    public Packet Configure(Action<Packet>? configure)
     {
         configure?.Invoke(this);
         return this;
@@ -52,9 +52,9 @@ public class Message : IRecyclable, IPrioritizable, IInspectable
         Recycler = default;
     }
 
-    public Message Copy()
+    public Packet Copy()
     {
-        Message copy = pool.Get();
+        Packet copy = pool.Get();
 
         copy.Content = Content;
         copy.Id = Id;
@@ -81,4 +81,16 @@ public class Message : IRecyclable, IPrioritizable, IInspectable
 
         pool.Recycle(this);
     }
+}
+
+public readonly record struct Packet<T>(Packet Value)
+{
+    public readonly bool CanRespond => Value.Responder is not null;
+    public readonly T Content => Value.GetContent<T>();
+
+    public void Respond(T content, Action<Packet>? configure = null)
+        => Value.Responder?.Send(Packet.New(content).Configure(configure));
+
+    public void Recycle()
+        => Value.Recycle();
 }

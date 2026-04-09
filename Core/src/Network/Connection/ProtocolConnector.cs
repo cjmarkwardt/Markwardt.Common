@@ -1,7 +1,7 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class ProtocolConnector<TSend, TReceive>(IMessageConnector<TReceive> connector, IMessageProtocol<TSend, TReceive> protocol) : IMessageConnector<TSend>
+public class ProtocolConnector<TSend, TReceive>(IConnector<TReceive> connector, IConnectionProtocol<TSend, TReceive> protocol) : IConnector<TSend>
 {
-    public IMessageConnection<TSend> Connect()
+    public IConnection<TSend> Connect()
         => protocol.Connect(connector.Connect());
 }

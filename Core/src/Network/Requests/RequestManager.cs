@@ -1,6 +1,6 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public interface IRequestManager
 {
-    ValueTask<Message> Request(Message message, TimeSpan? timeout, CancellationToken cancellation);
+    ValueTask<Packet> Request(Packet packet, TimeSpan? timeout, CancellationToken cancellation);
 }

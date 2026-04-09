@@ -1,19 +1,19 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class RateLimitProtocol(int rate) : IMessageProtocol<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
+public class RateLimitProtocol(int rate) : IConnectionProtocol<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
 {
-    public IMessageProcessor<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>> CreateProcessor()
+    public IConnectionProcessor<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>> CreateProcessor()
         => new Processor(rate);
 
-    private sealed class Processor(int rate) : MessageProcessor<ReadOnlyMemory<byte>>
+    private sealed class Processor(int rate) : ConnectionProcessor<ReadOnlyMemory<byte>>
     {
         private readonly Queue<QueuedMessage> sendQueue = [];
 
         private bool isWriting;
 
-        protected override async void SendContent(Message message, ReadOnlyMemory<byte> content)
+        protected override async void SendContent(Packet packet, ReadOnlyMemory<byte> content)
         {
-            sendQueue.Enqueue(new QueuedMessage(message, content.Length));
+            sendQueue.Enqueue(new QueuedMessage(packet, content.Length));
 
             if (!isWriting)
             {
@@ -37,6 +37,6 @@ public class RateLimitProtocol(int rate) : IMessageProtocol<ReadOnlyMemory<byte>
             }
         }
 
-        private record struct QueuedMessage(Message Message, int Length);
+        private record struct QueuedMessage(Packet Message, int Length);
     }
 }

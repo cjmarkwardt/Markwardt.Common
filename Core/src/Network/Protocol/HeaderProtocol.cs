@@ -1,4 +1,4 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public interface IHeaderPacket<THeader>
 {
@@ -6,40 +6,40 @@ public interface IHeaderPacket<THeader>
     void SetHeader(THeader header);
 }
 
-public abstract class HeaderrProcessor<T, THeader> : MessageProcessor<T>
+public abstract class HeaderrProcessor<T, THeader> : ConnectionProcessor<T>
     where T : IHeaderPacket<THeader>
     where THeader : struct
 {
     private readonly InspectValueKey<THeader> headerKey = new(typeof(THeader).Name);
 
-    protected Maybe<THeader> GetHeader(Message message)
-        => message.Inspect(headerKey);
+    protected Maybe<THeader> GetHeader(Packet packet)
+        => packet.Inspect(headerKey);
 
-    protected void SetHeader(Message message, THeader header)
-        => message.SetInspect(headerKey, header);
+    protected void SetHeader(Packet packet, THeader header)
+        => packet.SetInspect(headerKey, header);
 
-    protected override void SendContent(Message message, T content)
+    protected override void SendContent(Packet packet, T content)
     {
-        if (message.Inspect(headerKey).TryGetValue(out THeader header))
+        if (packet.Inspect(headerKey).TryGetValue(out THeader header))
         {
             content.SetHeader(header);
         }
 
-        TriggerSent(message);
+        TriggerSent(packet);
     }
 
-    protected override void ReceiveContent(Message message, T content)
+    protected override void ReceiveContent(Packet packet, T content)
     {
         if (content.GetHeader().TryGetValue(out THeader header))
         {
-            message.SetInspect(headerKey, header);
+            packet.SetInspect(headerKey, header);
         }
 
-        TriggerReceived(message);
+        TriggerReceived(packet);
     }
 }
 
-public abstract class HeaderProcessor<T, THeader> : MessageProcessor<T>
+public abstract class HeaderProcessor<T, THeader> : ConnectionProcessor<T>
     where THeader : class
 {
     protected HeaderProcessor()
@@ -47,36 +47,36 @@ public abstract class HeaderProcessor<T, THeader> : MessageProcessor<T>
         interceptor = CreateInterceptor();
     }
 
-    private readonly IMessageInterceptor? interceptor;
+    private readonly INetworkInterceptor? interceptor;
 
-    protected override IEnumerable<IMessageInterceptor> Interceptors => base.Interceptors.Concat(interceptor is not null ? [interceptor] : []);
+    protected override IEnumerable<INetworkInterceptor> Interceptors => base.Interceptors.Concat(interceptor is not null ? [interceptor] : []);
 
     protected abstract InspectKey<THeader> HeaderKey { get; }
 
     protected abstract void SetHeader(T content, THeader header);
     protected abstract Maybe<THeader> GetHeader(T content);
 
-    protected virtual IMessageInterceptor? CreateInterceptor()
+    protected virtual INetworkInterceptor? CreateInterceptor()
         => null;
 
-    protected override void SendContent(Message message, T content)
+    protected override void SendContent(Packet packet, T content)
     {
-        if (message.Inspect(HeaderKey).TryGetValue(out THeader? header))
+        if (packet.Inspect(HeaderKey).TryGetValue(out THeader? header))
         {
             SetHeader(content, header);
         }
 
-        TriggerSent(message);
+        TriggerSent(packet);
     }
 
-    protected override void ReceiveContent(Message message, T content)
+    protected override void ReceiveContent(Packet packet, T content)
     {
         if (GetHeader(content).TryGetValue(out THeader? header))
         {
-            message.SetInspect(HeaderKey, header);
+            packet.SetInspect(HeaderKey, header);
         }
 
-        TriggerReceived(message);
+        TriggerReceived(packet);
     }
 
     protected override void OnDisconnected(Exception? exception)

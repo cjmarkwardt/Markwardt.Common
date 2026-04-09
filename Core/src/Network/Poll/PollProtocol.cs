@@ -1,12 +1,12 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeout = null) : IMessageProtocol<T, T>
+public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeout = null) : IConnectionProtocol<T, T>
     where T : IPollPacket, IConstructable<T>
 {
-    public IMessageProcessor<T, T> CreateProcessor()
+    public IConnectionProcessor<T, T> CreateProcessor()
         => new Processor(pollInterval ?? TimeSpan.FromSeconds(1), pollTimeout ?? (pollInterval ?? TimeSpan.FromSeconds(1)) * 3);
 
-    private sealed class Processor(TimeSpan pollInterval, TimeSpan pollTimeout) : MessageProcessor<T>
+    private sealed class Processor(TimeSpan pollInterval, TimeSpan pollTimeout) : ConnectionProcessor<T>
     {
         private DateTime lastReceived;
 
@@ -28,13 +28,13 @@ public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeou
 
         private IDisposable? poll;
 
-        protected override void ReceiveContent(Message message, T content)
+        protected override void ReceiveContent(Packet packet, T content)
         {
             lastReceived = DateTime.UtcNow;
 
             if (!content.IsPoll())
             {
-                TriggerReceived(message);
+                TriggerReceived(packet);
             }
         }
 
@@ -51,7 +51,7 @@ public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeou
                 }
                 else
                 {
-                    TriggerSent(Message.New(T.New()));
+                    TriggerSent(Packet.New(T.New()));
                 }
             }
         }

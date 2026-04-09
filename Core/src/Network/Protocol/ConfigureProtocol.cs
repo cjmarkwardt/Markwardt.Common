@@ -1,22 +1,22 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class ConfigureProtocol<T>(Action<T, Message> configure) : IMessageProtocol<T, T>
+public class ConfigureProtocol<T>(Action<T, Packet> configure) : IConnectionProtocol<T, T>
 {
-    public IMessageProcessor<T, T> CreateProcessor()
+    public IConnectionProcessor<T, T> CreateProcessor()
         => new Processor(configure);
 
-    private sealed class Processor(Action<T, Message> configure) : MessageProcessor<T>
+    private sealed class Processor(Action<T, Packet> configure) : ConnectionProcessor<T>
     {
-        protected override void SendContent(Message message, T content)
-            => TriggerSent(Configure(message, content));
+        protected override void SendContent(Packet packet, T content)
+            => TriggerSent(Configure(packet, content));
 
-        protected override void ReceiveContent(Message message, T content)
-            => TriggerReceived(Configure(message, content));
+        protected override void ReceiveContent(Packet packet, T content)
+            => TriggerReceived(Configure(packet, content));
 
-        private Message Configure(Message message, T content)
+        private Packet Configure(Packet packet, T content)
         {
-            configure(content, message);
-            return message;
+            configure(content, packet);
+            return packet;
         }
     }
 }

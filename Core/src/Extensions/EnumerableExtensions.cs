@@ -5,14 +5,6 @@ public static class EnumerableExtensions
     public static IEnumerable<(T, int)> WithIndex<T>(this IEnumerable<T> enumerable)
         => enumerable.Select((x, i) => (x, i));
 
-    public static IEnumerable<ReadOnlyMemory<T>> Subdivide<T>(this ReadOnlyMemory<T> data, int size)
-    {
-        for (int i = 0; i < data.Length; i += size)
-        {
-            yield return data.Slice(i, Math.Min(size, data.Length - i));
-        }
-    }
-
     public static IEnumerable<(T Item, bool IsFirst, bool IsLast)> WithFirstLast<T>(this IEnumerable<T> enumerable)
     {
         bool isFirst = true;
@@ -33,12 +25,6 @@ public static class EnumerableExtensions
             yield return (last.Value, isFirst, true);
         }
     }
-
-    public static int GetPercentageIndex<T>(this IReadOnlyCollection<T> collection, float value)
-        => Math.Clamp((int)Math.Floor(value * collection.Count), 0, collection.Count - 1);
-
-    public static T GetPercentageItem<T>(this IReadOnlyList<T> list, float value)
-        => list[list.GetPercentageIndex(value)];
         
     public static Maybe<T> MaybeFirst<T>(this IEnumerable<T> enumerable, Func<T, bool> predicate)
     {
@@ -133,17 +119,6 @@ public static class EnumerableExtensions
         }
 
         return -1;
-    }
-
-    public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TValue> getValue)
-    {
-        if (!dictionary.TryGetValue(key, out TValue? value))
-        {
-            value = getValue();
-            dictionary.Add(key, value);
-        }
-
-        return value;
     }
 
     public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> enumerable)

@@ -15,4 +15,15 @@ public static class DictionaryExtensions
 
     public static void Overwrite<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IEnumerable<KeyValuePair<TKey, TValue>> pairs)
         => pairs.ForEach(x => dictionary[x.Key] = x.Value);
+
+    public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TValue> getValue)
+    {
+        if (!dictionary.TryGetValue(key, out TValue? value))
+        {
+            value = getValue();
+            dictionary.Add(key, value);
+        }
+
+        return value;
+    }
 }

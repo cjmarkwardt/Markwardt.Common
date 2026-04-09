@@ -1,11 +1,11 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory<byte>, InterruptPacket>
+public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMemory<byte>, InterruptPacket>
 {
-    public IMessageProcessor<ReadOnlyMemory<byte>, InterruptPacket> CreateProcessor()
+    public IConnectionProcessor<ReadOnlyMemory<byte>, InterruptPacket> CreateProcessor()
         => new Processor(packetSize);
 
-    private sealed class Processor(int packetSize) : MessageProcessor<ReadOnlyMemory<byte>, InterruptPacket>
+    private sealed class Processor(int packetSize) : ConnectionProcessor<ReadOnlyMemory<byte>, InterruptPacket>
     {
         private static readonly InterruptPacket receipt = new() { Type = InterruptHeader.Receipt };
 
@@ -14,13 +14,13 @@ public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory
 
         private int pendingPackets;
 
-        protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
+        protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
         {
-            outgoingSequences.Add(new OutgoingSequence(message, content, packetSize));
+            outgoingSequences.Add(new OutgoingSequence(packet, content, packetSize));
             SendPending();
         }
 
-        protected override void ReceiveContent(Message message, InterruptPacket content)
+        protected override void ReceiveContent(Packet packet, InterruptPacket content)
         {
             if (content.Type is InterruptHeader.Receipt)
             {
@@ -33,8 +33,8 @@ public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory
                 {
                     SendReceipt();
 
-                    message.Content = content.Data;
-                    TriggerReceived(message);
+                    packet.Content = content.Data;
+                    TriggerReceived(packet);
                 }
                 else
                 {
@@ -56,8 +56,8 @@ public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory
                         incomingSequences.Dequeue();
                         SendReceipt();
 
-                        message.Content = sequence.Data;
-                        TriggerReceived(message);
+                        packet.Content = sequence.Data;
+                        TriggerReceived(packet);
                     }
                     else
                     {
@@ -68,7 +68,7 @@ public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory
         }
 
         private void SendReceipt()
-            => TriggerSent(Message.New(receipt).Configure(x => x.Reliability = Reliability.Ordered));
+            => TriggerSent(Packet.New(receipt).Configure(x => x.Reliability = Reliability.Ordered));
 
         private void SendPending()
         {
@@ -97,15 +97,15 @@ public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory
                 => buffer.Write(data);
         }
 
-        private sealed class OutgoingSequence(Message message, ReadOnlyMemory<byte> content, int packetSize) : BaseDisposable, IPrioritizable
+        private sealed class OutgoingSequence(Packet packet, ReadOnlyMemory<byte> content, int packetSize) : BaseDisposable, IPrioritizable
         {
             private int index = -1;
 
-            public int Priority => message.Priority;
+            public int Priority => packet.Priority;
 
             public bool IsCompleted => index == content.Length;
 
-            public Message GetNextPacket()
+            public Packet GetNextPacket()
             {
                 if (IsCompleted)
                 {
@@ -123,8 +123,8 @@ public class InterruptProtocol(int packetSize) : IMessageProtocol<ReadOnlyMemory
                 ReadOnlyMemory<byte> data = content.Slice(index, size);
                 index += size;
 
-                Message packet = Message.New(InterruptPacket.FromData(isStart, isEnd, Priority, data));
-                packet.CopyInspects(message);
+                Packet packet = Packet.New(InterruptPacket.FromData(isStart, isEnd, Priority, data));
+                packet.CopyInspects(packet);
                 packet.Reliability = Reliability.Ordered;
 
                 return packet;

@@ -1,15 +1,27 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public interface IMessageHost<T> : IDisposable
+public interface IHost<T> : IDisposable
 {
     HostState State { get; }
     Exception? StopException { get; }
     IObservable<Exception?> Stopped { get; }
 
-    IObservable<IMessageConnection<T>> Connected { get; }
+    IObservable<IConnection<T>> Connected { get; }
 }
 
-public abstract class BaseMessageHost<T> : BaseDisposable, IMessageHost<T>, IInspectable
+public static class HostExtensions
+{
+    public static IDisposable Handle<T>(this IHost<T> host, IHostHandler<T> handler)
+    {
+        CompositeDisposable disposables = [];
+        host.Stopped.Subscribe(handler.OnHostStopped).DisposeWith(disposables);
+        host.Connected.Subscribe(x => x.Handle(handler).DisposeWith(disposables)).DisposeWith(disposables);
+        host.DisposeWith(disposables);
+        return disposables;
+    }
+}
+
+public abstract class Host<T> : BaseDisposable, IHost<T>, IInspectable
 {
     private readonly ControlledInspectable inspectable = new();
 
@@ -21,8 +33,8 @@ public abstract class BaseMessageHost<T> : BaseDisposable, IMessageHost<T>, IIns
     private readonly Subject<Exception?> stopped = new();
     public IObservable<Exception?> Stopped => stopped;
 
-    private readonly BufferSubject<IMessageConnection<T>> connections = new();
-    public IObservable<IMessageConnection<T>> Connected => connections;
+    private readonly BufferSubject<IConnection<T>> connections = new();
+    public IObservable<IConnection<T>> Connected => connections;
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspectable.Inspections;
 
@@ -31,7 +43,7 @@ public abstract class BaseMessageHost<T> : BaseDisposable, IMessageHost<T>, IIns
     protected void ChainInspections(object target)
         => inspectable.ChainInspections(target);
 
-    protected void Enqueue(IMessageConnection<T> connection)
+    protected void Enqueue(IConnection<T> connection)
     {
         if (State is HostState.Running)
         {
@@ -62,13 +74,4 @@ public abstract class BaseMessageHost<T> : BaseDisposable, IMessageHost<T>, IIns
         connections.Dispose();
         stopped.Dispose();
     }
-}
-
-public class MessageHost<T> : BaseMessageHost<T>
-{
-    public new void Enqueue(IMessageConnection<T> connection)
-        => base.Enqueue(connection);
-
-    public new void Stop(Exception? exception = null)
-        => base.Stop(exception);
 }

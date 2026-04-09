@@ -1,9 +1,11 @@
+using System.Reactive;
+
 namespace Markwardt;
 
 public interface IAssetSpace<T> : IDisposable
 {
     IObservable<T> Loaded { get; }
-    IObservable Unloaded { get; }
+    IObservable<Unit> Unloaded { get; }
 
     void Load(IAsset<T> asset, bool cache = false);
     void Unload();
@@ -13,7 +15,7 @@ public interface IAssetSpace<T> : IDisposable
 public interface IAssetSpace<T, TTag> : IDisposable
 {
     IObservable<(T Value, TTag Tag)> Loaded { get; }
-    IObservable Unloaded { get; }
+    IObservable<Unit> Unloaded { get; }
 
     void Load(IAsset<T> asset, TTag tag, bool cache = false);
     void Unload();
@@ -58,8 +60,8 @@ public class AssetSpace<T> : BaseDisposable, IAssetSpace<T>
     private readonly Subject<T> loaded = new();
     public IObservable<T> Loaded => loaded;
 
-    private readonly GeneralSubject unloaded = new();
-    public IObservable Unloaded => unloaded;
+    private readonly Subject<Unit> unloaded = new();
+    public IObservable<Unit> Unloaded => unloaded;
 
     public async void Load(IAsset<T> asset, bool cache = false)
     {
@@ -133,7 +135,7 @@ public class AssetSpace<T> : BaseDisposable, IAssetSpace<T>
 
             if (notify)
             {
-                unloaded.OnNext();
+                unloaded.OnNext(Unit.Default);
             }
         }
     }
@@ -159,7 +161,7 @@ public class AssetSpace<T, TTag> : BaseDisposable, IAssetSpace<T, TTag>
     private TTag? tag;
 
     public IObservable<(T Value, TTag Tag)> Loaded => space.Loaded.Select(x => (x, tag!));
-    public IObservable Unloaded => space.Unloaded;
+    public IObservable<Unit> Unloaded => space.Unloaded;
 
     public void Load(IAsset<T> asset, TTag tag, bool cache = false)
     {

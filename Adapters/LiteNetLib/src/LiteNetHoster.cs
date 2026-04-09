@@ -1,11 +1,11 @@
 namespace Markwardt;
 
-public class LiteNetHoster(int port, string? key = null) : IMessageHoster<ReadOnlyMemory<byte>>
+public class LiteNetHoster(int port, string? key = null) : IHoster<ReadOnlyMemory<byte>>
 {
-    public IMessageHost<ReadOnlyMemory<byte>> Host()
+    public IHost<ReadOnlyMemory<byte>> Host()
         => new Server(port, key);
 
-    private sealed class Server : BaseMessageHost<ReadOnlyMemory<byte>>, INetEventListener
+    private sealed class Server : Host<ReadOnlyMemory<byte>>, INetEventListener
     {
         public Server(int port, string? key = null)
         {
@@ -18,21 +18,21 @@ public class LiteNetHoster(int port, string? key = null) : IMessageHoster<ReadOn
 
         private readonly string key;
         private readonly NetManager network;
-        private readonly Dictionary<NetPeer, Connection> connections = [];
+        private readonly Dictionary<NetPeer, IncomingConnection> connections = [];
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
             => request.AcceptIfKey(key);
 
         void INetEventListener.OnPeerConnected(NetPeer peer)
         {
-            Connection connection = new(peer);
+            IncomingConnection connection = new(peer);
             connections.Add(peer, connection);
             Enqueue(connection);
         }
 
         void INetEventListener.OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channelNumber, DeliveryMethod deliveryMethod)
         {
-            if (connections.TryGetValue(peer, out Connection? connection))
+            if (connections.TryGetValue(peer, out IncomingConnection? connection))
             {
                 connection.Receive(reader);
             }
@@ -40,7 +40,7 @@ public class LiteNetHoster(int port, string? key = null) : IMessageHoster<ReadOn
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
         {
-            if (connections.Remove(peer, out Connection? connection))
+            if (connections.Remove(peer, out IncomingConnection? connection))
             {
                 connection.Disconnect(disconnectInfo);
             }
@@ -58,9 +58,9 @@ public class LiteNetHoster(int port, string? key = null) : IMessageHoster<ReadOn
             network.Stop();
         }
 
-        private sealed class Connection : MessageConnection<ReadOnlyMemory<byte>>
+        private sealed class IncomingConnection : Connection<ReadOnlyMemory<byte>>
         {
-            public Connection(NetPeer peer)
+            public IncomingConnection(NetPeer peer)
             {
                 this.peer = peer;
                 
@@ -75,8 +75,8 @@ public class LiteNetHoster(int port, string? key = null) : IMessageHoster<ReadOn
             public void Disconnect(DisconnectInfo info)
                 => SetDisconnected(new RemoteDisconnectException(info.Reason.ToString()));
 
-            protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
-                => peer.Send(message, content);
+            protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
+                => peer.Send(packet, content);
 
             protected override void OnDisconnected(Exception? exception)
             {

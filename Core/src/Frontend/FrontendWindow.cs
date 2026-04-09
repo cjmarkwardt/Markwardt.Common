@@ -1,17 +1,17 @@
 namespace Markwardt;
 
-public interface IFrontendWindow : IMessageSender, IDisposable
+public interface IFrontendWindow : ISender, IDisposable
 {
     FrontendWindowState State { get; }
 
     IObservable<Exception?> Closed { get; }
     IObservable<string> Output { get; }
-    IObservable<Message> Received { get; }
+    IObservable<Packet> Received { get; }
 
     ValueTask Open(FrontendWindowOpenOptions? options = null);
 }
 
-public interface IFrontendWindow<T> : IFrontendWindow, IMessageSender<T>;
+public interface IFrontendWindow<T> : IFrontendWindow, ISender<T>;
 
 public static class FrontendWindowExtensions
 {

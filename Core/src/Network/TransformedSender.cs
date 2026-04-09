@@ -1,7 +1,7 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class TransformedSender(IMessageSender sender, Func<Message, Message> transform) : IMessageSender
+public class TransformedSender(ISender sender, Func<Packet, Packet> transform) : ISender
 {
-    public void Send(Message message)
-        => sender.Send(transform(message));
+    public void Send(Packet packet)
+        => sender.Send(transform(packet));
 }

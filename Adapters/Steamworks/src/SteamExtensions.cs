@@ -2,10 +2,10 @@ namespace Markwardt;
 
 public static class SteamExtensions
 {
-    public static IMessageHost<TSend> HostSteam<TSend>(this IMessageProtocol<TSend, ReadOnlyMemory<byte>> protocol, int port)
+    public static IHost<TSend> HostSteam<TSend>(this IConnectionProtocol<TSend, ReadOnlyMemory<byte>> protocol, int port)
         => protocol.Host(new SteamHoster(port));
 
-    public static IMessageConnection<TSend> ConnectSteam<TSend>(this IMessageProtocol<TSend, ReadOnlyMemory<byte>> protocol, SteamTarget target, int port)
+    public static IConnection<TSend> ConnectSteam<TSend>(this IConnectionProtocol<TSend, ReadOnlyMemory<byte>> protocol, SteamTarget target, int port)
         => protocol.Connect(new SteamConnector(target, port));
 
     internal static async ValueTask<Failable<T>> Callback<T>(Func<T, bool> filter, CancellationToken cancellation = default)

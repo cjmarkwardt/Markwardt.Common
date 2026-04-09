@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-internal class SteamConnection : MessageConnection<ReadOnlyMemory<byte>>
+internal class SteamConnection : Connection<ReadOnlyMemory<byte>>
 {
     private static SteamConnectionHandle Connect(SteamTarget target, int port)
     {
@@ -21,9 +21,9 @@ internal class SteamConnection : MessageConnection<ReadOnlyMemory<byte>>
 
     private readonly SteamConnectionHandle handle;
 
-    protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
+    protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
     {
-        EResult result = handle.Write(content.Span, message.Reliability is Reliability.Unreliable ? 0 : 8);
+        EResult result = handle.Write(content.Span, packet.Reliability is Reliability.Unreliable ? 0 : 8);
         if (result is not EResult.k_EResultOK)
         {
             SetDisconnected(new RemoteDisconnectException($"Failed to send ({result})"));
@@ -52,7 +52,7 @@ internal class SteamConnection : MessageConnection<ReadOnlyMemory<byte>>
             void Receive(ReadOnlySpan<byte> data)
             {
                 Buffer<byte> buffer = data.ToBuffer();
-                TriggerReceived(Message.New(buffer.Memory.AsReadOnly(), buffer));
+                TriggerReceived(Packet.New(buffer.Memory.AsReadOnly(), buffer));
             }
 
             if (!handle.Read(Receive))

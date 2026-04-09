@@ -1,8 +1,8 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IMessageConnection<TSend>, IMessageInterceptable, IInspectable
+public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IConnection<TSend>, INetworkInterceptable, IInspectable
 {
-    public ProtocolConnection(IMessageConnection<TReceive> connection, IMessageProtocol<TSend, TReceive> protocol)
+    public ProtocolConnection(IConnection<TReceive> connection, IConnectionProtocol<TSend, TReceive> protocol)
     {
         processor = protocol.CreateProcessor();
         this.connection = connection;
@@ -13,43 +13,43 @@ public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IMessageConne
         connection.Received.Subscribe(OnConnectionReceived);
     }
 
-    private readonly IMessageProcessor<TSend, TReceive> processor;
-    private readonly IMessageConnection<TReceive> connection;
+    private readonly IConnectionProcessor<TSend, TReceive> processor;
+    private readonly IConnection<TReceive> connection;
     private readonly IDictionary<IInspectKey, object> inspections;
 
     private Exception? disconnectException;
 
-    public IObservable<Message> Received => processor.Received;
+    public IObservable<Packet> Received => processor.Received;
 
-    IEnumerable<IMessageInterceptor> IMessageInterceptable.Interceptors => MessageInterceptor.GetInterceptors(processor).Concat(MessageInterceptor.GetInterceptors(connection));
+    IEnumerable<INetworkInterceptor> INetworkInterceptable.Interceptors => NetworkInterceptor.GetInterceptors(processor).Concat(NetworkInterceptor.GetInterceptors(connection));
 
     public ConnectionState State => disconnectException is not null ? ConnectionState.Disconnected : connection.State;
     public Exception? DisconnectException => disconnectException ?? connection.DisconnectException;
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspections;
 
-    public void Send(Message message)
-        => processor.Send(message);
+    public void Send(Packet packet)
+        => processor.Send(packet);
 
-    private void OnProcessorSent(Message message)
+    private void OnProcessorSent(Packet packet)
     {
-        if (message.Content is DisconnectedSignal signal)
+        if (packet.Content is DisconnectedSignal signal)
         {
             disconnectException = signal.Exception;
-            processor.Receive(message);
+            processor.Receive(packet);
             connection.Dispose();
         }
         else
         {
-            connection.Send(message);
+            connection.Send(packet);
         }
     }
 
-    private void OnConnectionReceived(Message message)
+    private void OnConnectionReceived(Packet packet)
     {
         if (disconnectException is null)
         {
-            processor.Receive(message);
+            processor.Receive(packet);
         }
     }
 

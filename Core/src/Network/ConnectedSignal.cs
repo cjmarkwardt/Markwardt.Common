@@ -1,4 +1,4 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public class ConnectedSignal
 {

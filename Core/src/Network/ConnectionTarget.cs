@@ -1,17 +1,17 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public abstract class MessageTarget<T> : BaseDisposable, IMessageConnection<T>, IMessageInterceptable, IInspectable
+public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INetworkInterceptable, IInspectable
 {
     private readonly ControlledInspectable inspectable = new();
 
     protected IInspectable Inspectable => inspectable.Controlled;
 
-    private readonly BufferSubject<Message> received = new();
-    public IObservable<Message> Received => received;
+    private readonly BufferSubject<Packet> received = new();
+    public IObservable<Packet> Received => received;
 
-    protected virtual IEnumerable<IMessageInterceptor> Interceptors => [];
+    protected virtual IEnumerable<INetworkInterceptor> Interceptors => [];
 
-    IEnumerable<IMessageInterceptor> IMessageInterceptable.Interceptors => Interceptors;
+    IEnumerable<INetworkInterceptor> INetworkInterceptable.Interceptors => Interceptors;
 
     private ConnectionState state;
     public ConnectionState State => state;
@@ -20,27 +20,27 @@ public abstract class MessageTarget<T> : BaseDisposable, IMessageConnection<T>, 
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspectable.Inspections;
 
-    public void Send(Message message)
+    public void Send(Packet packet)
     {
-        if (message.Content is T content)
+        if (packet.Content is T content)
         {
             if (State is ConnectionState.Connected)
             {
-                SendContent(message, content);
+                SendContent(packet, content);
             }
         }
         else
         {
-            SendSignal(message);
+            SendSignal(packet);
         }
     }
 
     protected void ChainInspections(object target)
         => inspectable.ChainInspections(target);
 
-    protected abstract void SendContent(Message message, T content);
+    protected abstract void SendContent(Packet packet, T content);
 
-    protected virtual void SendSignal(Message message) { }
+    protected virtual void SendSignal(Packet packet) { }
 
     protected virtual void OnConnected()
     {
@@ -54,21 +54,21 @@ public abstract class MessageTarget<T> : BaseDisposable, IMessageConnection<T>, 
         DisconnectException = exception;
     }
 
-    protected void TriggerReceived(Message message)
+    protected void TriggerReceived(Packet packet)
     {
-        if (message.Content is ConnectedSignal signal)
+        if (packet.Content is ConnectedSignal signal)
         {
             OnConnected();
         }
-        else if (message.Content is DisconnectedSignal disconnectedSignal)
+        else if (packet.Content is DisconnectedSignal disconnectedSignal)
         {
             OnDisconnected(disconnectedSignal.Exception);
         }
         
         bool isIntercepted = false;
-        foreach (IMessageInterceptor interceptor in Interceptors)
+        foreach (INetworkInterceptor interceptor in Interceptors)
         {
-            if (interceptor.Intercept(this, message) is IEnumerable<Message> interception)
+            if (interceptor.Intercept(this, packet) is IEnumerable<Packet> interception)
             {
                 interception.ForEach(received.OnNext);
                 isIntercepted = true;
@@ -78,7 +78,7 @@ public abstract class MessageTarget<T> : BaseDisposable, IMessageConnection<T>, 
 
         if (!isIntercepted)
         {
-            received.OnNext(message);
+            received.OnNext(packet);
         }
     }
 

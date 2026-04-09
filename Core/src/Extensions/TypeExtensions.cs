@@ -2,7 +2,7 @@ namespace Markwardt;
 
 public static class TypeExtensions
 {
-    public static Type GetResultType(this Type type)
+    public static Type GetTaskResultType(this Type type)
     {
         if (type == typeof(Task) || type == typeof(ValueTask))
         {

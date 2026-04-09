@@ -1,18 +1,18 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public interface ILoopHoster<T> : IMessageHoster<T>, IMessageConnector<T>;
+public interface ILoopHoster<T> : IHoster<T>, IConnector<T>;
 
 public class LoopHoster<T> : ILoopHoster<T>
 {
-    private MessageHost<T>? host;
+    private QueueHost<T>? host;
 
-    public IMessageHost<T> Host()
+    public IHost<T> Host()
     {
         host?.Stop(new RemoteDisconnectException("Loop host has been replaced"));
         return host = new();
     }
 
-    public IMessageConnection<T> Connect()
+    public IConnection<T> Connect()
     {
         if (host is null)
         {

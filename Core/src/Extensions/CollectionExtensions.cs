@@ -17,4 +17,10 @@ public static class CollectionExtensions
             collection.Remove(item);
         }
     }
+
+    public static int GetPercentageIndex<T>(this IReadOnlyCollection<T> collection, float value)
+        => Math.Clamp((int)Math.Floor(value * collection.Count), 0, collection.Count - 1);
+
+    public static T GetPercentageItem<T>(this IReadOnlyList<T> list, float value)
+        => list[list.GetPercentageIndex(value)];
 }

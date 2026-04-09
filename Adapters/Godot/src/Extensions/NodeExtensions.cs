@@ -32,7 +32,7 @@ public static class NodeExtensions
         
         node.TreeEntered += () =>
         {
-            disposables = new();
+            disposables = [];
             action(disposables);
         };
 

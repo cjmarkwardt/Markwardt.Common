@@ -1,10 +1,10 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public interface IChannelManager
 {
-    IEnumerable<IMessageChannel> Channels { get; }
+    IEnumerable<IChannel> Channels { get; }
 
-    IObservable<(Message Message, IObservable<Message> Messages)> Received { get; }
+    IObservable<(Packet Message, IObservable<Packet> Messages)> Received { get; }
 
-    IMessageChannel OpenChannel(Message message, TimeSpan? autoAssertDelay);
+    IChannel OpenChannel(Packet packet, TimeSpan? autoAssertDelay);
 }

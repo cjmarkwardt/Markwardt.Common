@@ -32,9 +32,9 @@ public partial class ServiceInitializer<TStarter> : Node
 
     protected virtual void Configure(IServiceConfiguration services)
     {
-        services.Configure<SceneTree>(Service.Instance(GetTree()));
-        services.Configure<Window>(Service.Instance(GetTree().Root));
-        services.Configure<RootNodeTag>(Service.Instance(this));
+        services.Configure<SceneTree>(new InstanceService(GetTree()));
+        services.Configure<Window>(new InstanceService(GetTree().Root));
+        services.Configure<RootNodeTag>(new InstanceService(this));
         services.Configure<ILogger, GodotLogger>();
         services.Configure<IExiter, GodotExiter>();
         services.ConfigureProjectSetting<ApplicationNameTag>("application/config/name", x => x.AsString());

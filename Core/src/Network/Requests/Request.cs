@@ -1,8 +1,8 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public interface IRequest
 {
     int RequestId { get; }
 
-    ValueTask<Message> GetResponse(TimeSpan? timeout = null, CancellationToken cancellation = default);
+    ValueTask<Packet> GetResponse(TimeSpan? timeout = null, CancellationToken cancellation = default);
 }

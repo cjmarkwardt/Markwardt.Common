@@ -1,6 +1,6 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class LoopConnection<T> : MessageConnection<T>
+public class LoopConnection<T> : Connection<T>
 {
     public static (LoopConnection<T>, LoopConnection<T>) Connect()
     {
@@ -20,8 +20,8 @@ public class LoopConnection<T> : MessageConnection<T>
 
     private LoopConnection<T> target = null!;
 
-    protected override void SendContent(Message message, T content)
-        => target.TriggerReceived(message);
+    protected override void SendContent(Packet packet, T content)
+        => target.TriggerReceived(packet);
 
     protected override void OnDisconnected(Exception? exception)
     {

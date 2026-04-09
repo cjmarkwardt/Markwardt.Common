@@ -27,6 +27,7 @@ global using System.Threading.Channels;
 global using System.Runtime.InteropServices;
 
 global using Markwardt;
+global using Markwardt.Network;
 
 global using ImpromptuInterface;
 

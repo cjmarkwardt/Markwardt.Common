@@ -1,9 +1,9 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public interface IRequester
 {
     IRequest CreateRequest();
-    void ReceiveResponse(int id, Message message);
+    void ReceiveResponse(int id, Packet packet);
 }
 
 public class Requester : IRequester
@@ -18,19 +18,19 @@ public class Requester : IRequester
         return request;
     }
 
-    public void ReceiveResponse(int id, Message message)
-        => outgoingRequests.GetValueOrDefault(id)?.SetResponse(message);
+    public void ReceiveResponse(int id, Packet packet)
+        => outgoingRequests.GetValueOrDefault(id)?.SetResponse(packet);
 
     private sealed class Request(Requester manager) : IRequest
     {
-        private readonly TaskCompletionSource<Message> completion = new();
+        private readonly TaskCompletionSource<Packet> completion = new();
 
         public int RequestId { get; } = manager.requestIds.Next();
 
-        public void SetResponse(Message response)
+        public void SetResponse(Packet response)
             => completion.SetResult(response);
 
-        public async ValueTask<Message> GetResponse(TimeSpan? timeout = null, CancellationToken cancellation = default)
+        public async ValueTask<Packet> GetResponse(TimeSpan? timeout = null, CancellationToken cancellation = default)
         {
             try
             {

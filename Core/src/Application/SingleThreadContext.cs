@@ -20,8 +20,8 @@ public class SingleThreadContext
         SynchronizationContext.SetSynchronizationContext(previousSyncContext);
     }
 
-    private readonly Channel<Callback> posts = Channel.CreateUnbounded<Callback>();
-    private readonly Channel<Callback> sends = Channel.CreateUnbounded<Callback>();
+    private readonly System.Threading.Channels.Channel<Callback> posts = Channel.CreateUnbounded<Callback>();
+    private readonly System.Threading.Channels.Channel<Callback> sends = Channel.CreateUnbounded<Callback>();
 
     private void Run(Func<Task> action, CancellationToken cancellation = default)
     {

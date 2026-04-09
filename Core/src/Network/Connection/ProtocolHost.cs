@@ -1,8 +1,8 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class ProtocolHost<TSend, TReceive> : BaseMessageHost<TSend>
+public class ProtocolHost<TSend, TReceive> : Host<TSend>
 {
-    public ProtocolHost(IMessageHost<TReceive> host, IMessageProtocol<TSend, TReceive> protocol)
+    public ProtocolHost(IHost<TReceive> host, IConnectionProtocol<TSend, TReceive> protocol)
     {
         ChainInspections(host);
         host.DisposeWith(this);

@@ -1,8 +1,8 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class ChainProcessor<TSend, TTransport, TReceive> : MessageProcessor<TSend, TReceive>
+public class ChainProcessor<TSend, TTransport, TReceive> : ConnectionProcessor<TSend, TReceive>
 {
-    public ChainProcessor(IMessageProcessor<TSend, TTransport> source, IMessageProcessor<TTransport, TReceive> chain)
+    public ChainProcessor(IConnectionProcessor<TSend, TTransport> source, IConnectionProcessor<TTransport, TReceive> chain)
     {
         this.source = source.DisposeWith(this);
         this.chain = chain.DisposeWith(this);
@@ -17,20 +17,20 @@ public class ChainProcessor<TSend, TTransport, TReceive> : MessageProcessor<TSen
         chain.Sent.Subscribe(TriggerSent);
     }
 
-    private readonly IMessageProcessor<TSend, TTransport> source;
-    private readonly IMessageProcessor<TTransport, TReceive> chain;
+    private readonly IConnectionProcessor<TSend, TTransport> source;
+    private readonly IConnectionProcessor<TTransport, TReceive> chain;
 
-    protected override IEnumerable<IMessageInterceptor> Interceptors => base.Interceptors.Concat(MessageInterceptor.GetInterceptors(source)).Concat(MessageInterceptor.GetInterceptors(chain));
+    protected override IEnumerable<INetworkInterceptor> Interceptors => base.Interceptors.Concat(NetworkInterceptor.GetInterceptors(source)).Concat(NetworkInterceptor.GetInterceptors(chain));
 
-    protected override void SendContent(Message message, TSend content)
-        => source.Send(message);
+    protected override void SendContent(Packet packet, TSend content)
+        => source.Send(packet);
 
-    protected override void SendSignal(Message message)
-        => source.Send(message);
+    protected override void SendSignal(Packet packet)
+        => source.Send(packet);
 
-    protected override void ReceiveContent(Message message, TReceive content)
-        => chain.Receive(message);
+    protected override void ReceiveContent(Packet packet, TReceive content)
+        => chain.Receive(packet);
 
-    protected override void ReceiveSignal(Message message)
-        => chain.Receive(message);
+    protected override void ReceiveSignal(Packet packet)
+        => chain.Receive(packet);
 }

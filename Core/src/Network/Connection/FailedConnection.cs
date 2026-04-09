@@ -1,15 +1,15 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class FailedConnection<T>(Exception? disconnectException) : IMessageConnection<T>
+public class FailedConnection<T>(Exception? disconnectException) : IConnection<T>
 {
     public ConnectionState State => ConnectionState.Disconnected;
     public Exception? DisconnectException => disconnectException;
     public IEnumerable<object> Marks => [];
-    public IEnumerable<IMessageInterceptor> Interceptors => [];
+    public IEnumerable<INetworkInterceptor> Interceptors => [];
 
-    public IObservable<Message> Received => Observable.Never<Message>().StartWith(Message.New(new DisconnectedSignal(disconnectException)));
+    public IObservable<Packet> Received => Observable.Never<Packet>().StartWith(Packet.New(new DisconnectedSignal(disconnectException)));
 
-    public void Send(Message message) { }
+    public void Send(Packet packet) { }
 
     public void Dispose() { }
 }

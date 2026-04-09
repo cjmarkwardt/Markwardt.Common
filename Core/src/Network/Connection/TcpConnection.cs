@@ -1,4 +1,4 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public class IpConnectionKey : InspectKey<IIpConnectionInfo>
 {
@@ -16,7 +16,7 @@ public interface IIpConnectionInfo
     int Port { get; }
 }
 
-internal class TcpConnection : MessageConnection<ReadOnlyMemory<byte>>
+internal class TcpConnection : Connection<ReadOnlyMemory<byte>>
 {
     public TcpConnection(TcpClient client, (string, int)? target, MemoryPool<byte>? pool)
     {
@@ -32,10 +32,10 @@ internal class TcpConnection : MessageConnection<ReadOnlyMemory<byte>>
     private readonly (string Host, int Port)? target;
     private readonly MemoryPool<byte>? pool;
     private readonly IDisposable run;
-    private readonly BufferBlock<Message> sendQueue = new();
+    private readonly BufferBlock<Packet> sendQueue = new();
 
-    protected override void SendContent(Message message, ReadOnlyMemory<byte> content)
-        => sendQueue.Post(message);
+    protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
+        => sendQueue.Post(packet);
 
     protected override void OnDisconnected(Exception? exception)
     {
@@ -113,9 +113,9 @@ internal class TcpConnection : MessageConnection<ReadOnlyMemory<byte>>
 
         while (!cancellation.IsCancellationRequested)
         {
-            Message message = await sendQueue.ReceiveAsync(cancellation);
-            await stream.WriteAsync((ReadOnlyMemory<byte>)message.Content!, cancellation);
-            message.Recycle();
+            Packet packet = await sendQueue.ReceiveAsync(cancellation);
+            await stream.WriteAsync((ReadOnlyMemory<byte>)packet.Content!, cancellation);
+            packet.Recycle();
         }
     }
 
@@ -138,7 +138,7 @@ internal class TcpConnection : MessageConnection<ReadOnlyMemory<byte>>
                     return;
                 }
 
-                TriggerReceived(Message.New(buffer.Memory[..read].AsReadOnly(), buffer));
+                TriggerReceived(Packet.New(buffer.Memory[..read].AsReadOnly(), buffer));
             }
         }
         catch (EndOfStreamException exception)

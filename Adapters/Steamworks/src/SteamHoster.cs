@@ -1,11 +1,11 @@
 namespace Markwardt;
 
-public class SteamHoster(int port = 0) : IMessageHoster<ReadOnlyMemory<byte>>
+public class SteamHoster(int port = 0) : IHoster<ReadOnlyMemory<byte>>
 {
-    public IMessageHost<ReadOnlyMemory<byte>> Host()
+    public IHost<ReadOnlyMemory<byte>> Host()
         => new Server(port);
 
-    private sealed class Server : BaseMessageHost<ReadOnlyMemory<byte>>
+    private sealed class Server : Host<ReadOnlyMemory<byte>>
     {
         public Server(int port = 0)
         {

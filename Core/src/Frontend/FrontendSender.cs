@@ -1,3 +1,3 @@
 namespace Markwardt;
 
-public class FrontendSenderTag : ConstructorTag<ConfiguredMessageSender>;
+public class FrontendSenderTag : ConstructorTag<ConfiguredSender>;

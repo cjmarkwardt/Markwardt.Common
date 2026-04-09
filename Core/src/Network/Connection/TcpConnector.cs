@@ -1,7 +1,7 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class TcpConnector(string host, int port, MemoryPool<byte>? pool = null) : IMessageConnector<ReadOnlyMemory<byte>>
+public class TcpConnector(string host, int port, MemoryPool<byte>? pool = null) : IConnector<ReadOnlyMemory<byte>>
 {
-    public IMessageConnection<ReadOnlyMemory<byte>> Connect()
+    public IConnection<ReadOnlyMemory<byte>> Connect()
         => new TcpConnection(new(), (host, port), pool);
 }

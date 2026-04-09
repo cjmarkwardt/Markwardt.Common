@@ -1,11 +1,11 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class LengthPrefixBufferProtocol(MemoryPool<byte>? pool = null) : IMessageProtocol<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
+public class LengthPrefixBufferProtocol(MemoryPool<byte>? pool = null) : IConnectionProtocol<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>
 {
-    public IMessageProcessor<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>> CreateProcessor()
+    public IConnectionProcessor<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>> CreateProcessor()
         => new Processor(pool ?? MemoryPool<byte>.Shared);
 
-    private sealed class Processor : MessageProcessor<ReadOnlyMemory<byte>>
+    private sealed class Processor : ConnectionProcessor<ReadOnlyMemory<byte>>
     {
         public Processor(MemoryPool<byte> pool)
         {
@@ -23,7 +23,7 @@ public class LengthPrefixBufferProtocol(MemoryPool<byte>? pool = null) : IMessag
 
         private int? nextLength;
 
-        protected override void ReceiveContent(Message message, ReadOnlyMemory<byte> content)
+        protected override void ReceiveContent(Packet packet, ReadOnlyMemory<byte> content)
         {
             while (content.Length > 0)
             {
@@ -56,7 +56,7 @@ public class LengthPrefixBufferProtocol(MemoryPool<byte>? pool = null) : IMessag
                         nextLength = null;
                         nextLengthBuffer.SetLength(0);
 
-                        TriggerReceived(Message.New(buffer.Memory.AsReadOnly(), buffer));
+                        TriggerReceived(Packet.New(buffer.Memory.AsReadOnly(), buffer));
                     }
                 }
             }

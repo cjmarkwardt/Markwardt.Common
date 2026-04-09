@@ -11,3 +11,5 @@ global using System.Reactive.Linq;
 global using System.Runtime.CompilerServices;
 global using System.Text.Json.Serialization;
 global using System.Reactive.Disposables;
+
+global using Markwardt.Network;

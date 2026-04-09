@@ -8,12 +8,12 @@ public class EmbeddedElectronStarter<T> : IStarter
     public required IEmbeddedElectronBuilder Builder { get; init; }
     
     [Inject<FrontendSenderTag>]
-    public required IConfiguredMessageSender FrontendSender { get; init; }
+    public required IConfiguredSender FrontendSender { get; init; }
 
-    [Inject<MessagesTag>]
-    public required IEvent<Message> Messages { get; init; }
+    [Inject<ReceivedPacketsTag>]
+    public required IEvent<Packet> Messages { get; init; }
 
-    [Inject<MessagesInitializerTag>]
+    [Inject<ReceiverInitializerTag>]
     public required IInitializer MessagesInitializer { get; init; }
 
     [Inject<ExitedTag>]

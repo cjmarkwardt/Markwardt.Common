@@ -1,16 +1,16 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 [DataContract]
-public record StandardPacket<T> : IPollPacket, IHeaderPacket<RequestHeader>, IHeaderPacket<ChannelHeader>, IConstructable<StandardPacket<T>>, IRecyclable
+public record StandardMessage<T> : IPollPacket, IHeaderPacket<RequestHeader>, IHeaderPacket<ChannelHeader>, IConstructable<StandardMessage<T>>, IRecyclable
 {
-    private readonly static Pool<StandardPacket<T>> pool = new(() => new());
+    private readonly static Pool<StandardMessage<T>> pool = new(() => new());
 
-    public static StandardPacket<T> New()
+    public static StandardMessage<T> New()
         => pool.Get();
 
-    public static StandardPacket<T> New(T content)
+    public static StandardMessage<T> New(T content)
     {
-        StandardPacket<T> packet = New();
+        StandardMessage<T> packet = New();
         packet.Content = content;
         return packet;
     }

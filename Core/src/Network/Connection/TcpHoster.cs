@@ -1,4 +1,4 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
 public class IpPortKey : InspectValueKey<int>
 {
@@ -8,12 +8,12 @@ public class IpPortKey : InspectValueKey<int>
         : base(nameof(IpPortKey)) { }
 }
 
-public class TcpHoster(int? port = null, IPAddress? address = null, MemoryPool<byte>? pool = null) : IMessageHoster<ReadOnlyMemory<byte>>
+public class TcpHoster(int? port = null, IPAddress? address = null, MemoryPool<byte>? pool = null) : IHoster<ReadOnlyMemory<byte>>
 {
-    public IMessageHost<ReadOnlyMemory<byte>> Host()
+    public IHost<ReadOnlyMemory<byte>> Host()
         => new Server(port, address, pool);
 
-    private sealed class Server : BaseMessageHost<ReadOnlyMemory<byte>>
+    private sealed class Server : Host<ReadOnlyMemory<byte>>
     {
         public Server(int? port, IPAddress? address, MemoryPool<byte>? pool)
         {

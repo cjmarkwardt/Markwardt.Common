@@ -13,7 +13,4 @@ public static class MethodExtensions
             return method.Invoke(instance, arguments);
         }
     }
-
-    public static object? SafeInvoke(this MethodBase method, object? instance = null, IEnumerable<object?>? arguments = null)
-        => method.SafeInvoke(instance, arguments?.ToArray());
 }

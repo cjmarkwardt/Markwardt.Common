@@ -1,6 +1,6 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public interface IMessageChannelValue<T> : IDisposable
+public interface IChannelValue<T> : IDisposable
 {
     T Value { get; set; }
 
@@ -8,9 +8,9 @@ public interface IMessageChannelValue<T> : IDisposable
     void Assert();
 }
 
-public class MessageChannelValue<T, TContent> : BaseDisposable, IMessageChannelValue<T>
+public class ChannelValue<T, TContent> : BaseDisposable, IChannelValue<T>
 {
-    public MessageChannelValue(IMessageChannel<TContent> channel, TimeSpan sendInterval, T value, Func<T, TContent> write)
+    public ChannelValue(IChannel<TContent> channel, TimeSpan sendInterval, T value, Func<T, TContent> write)
     {
         this.channel = channel;
         this.sendInterval = sendInterval;
@@ -20,7 +20,7 @@ public class MessageChannelValue<T, TContent> : BaseDisposable, IMessageChannelV
         this.RunInBackground(StartSend);
     }
 
-    private readonly IMessageChannel<TContent> channel;
+    private readonly IChannel<TContent> channel;
     private readonly TimeSpan sendInterval;
     private readonly Func<T, TContent> write;
 

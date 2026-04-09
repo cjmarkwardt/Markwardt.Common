@@ -19,7 +19,7 @@ public class InvokableMethod : ICustomAttributeProvider
             methodInvoker = MethodInvoker.Create(method);
             InstanceType = method.IsStatic ? null : method.DeclaringType.NotNull();
 
-            ResultType = method.ReturnType.GetResultType();
+            ResultType = method.ReturnType.GetTaskResultType();
             ResultAttributes = method.ReturnTypeCustomAttributes;
         }
         else

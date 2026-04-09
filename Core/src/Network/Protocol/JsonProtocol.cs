@@ -1,8 +1,8 @@
-namespace Markwardt;
+namespace Markwardt.Network;
 
-public class JsonProtocol<T>(JsonSerializerOptions? options = null) : IMessageProtocol<T, string>
+public class JsonProtocol<T>(JsonSerializerOptions? options = null) : IConnectionProtocol<T, string>
 {
-    public IMessageProcessor<T, string> CreateProcessor()
+    public IConnectionProcessor<T, string> CreateProcessor()
         => new Processor(options ?? new JsonSerializerOptions() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault });
 
     private sealed class Processor(JsonSerializerOptions options) : ConvertProcessor<T, string>

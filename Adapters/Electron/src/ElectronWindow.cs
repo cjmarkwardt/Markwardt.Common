@@ -1,8 +1,8 @@
 namespace Markwardt;
 
-public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFrontendWindow<T>, IMessageHandler<T>
+public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFrontendWindow<T>, IHostHandler<T>
 {
-    private static readonly IMessageProtocol<T, ReadOnlyMemory<byte>> protocol;
+    private static readonly IConnectionProtocol<T, ReadOnlyMemory<byte>> protocol;
 
     private static readonly JsonSerializerOptions serializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -10,13 +10,13 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
     };
 
     static ElectronWindow()
-        => protocol = new MessageProtocol<T>().AsStandardPackets().AsJson(serializerOptions).AsBytes().WithLengthPrefixBuffer();
+        => protocol = new ConnectionProtocol<T>().AsStandardMessages().AsJson(serializerOptions).AsBytes().WithLengthPrefixBuffer();
 
     private readonly CancellationTokenSource cancellation = new();
 
     private bool isDisposed;
     private IDisposable? host = null;
-    private IMessageConnection<T>? connection;
+    private IConnection<T>? connection;
     private Process? process;
 
     private readonly ReplaySubject<Exception?> closed = new();
@@ -25,8 +25,8 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
     private readonly Subject<string> output = new();
     public IObservable<string> Output => output;
 
-    private readonly BufferSubject<Message> received = new();
-    public IObservable<Message> Received => received;
+    private readonly BufferSubject<Packet> received = new();
+    public IObservable<Packet> Received => received;
 
     public FrontendWindowState State { get; private set; }
 
@@ -98,8 +98,8 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
         }
     }
 
-    public void Send(Message message)
-        => connection?.Send(message);
+    public void Send(Packet packet)
+        => connection?.Send(packet);
 
     public void Dispose()
     {
@@ -112,7 +112,7 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
         }
     }
 
-    void IMessageHandler<T>.OnConnected(IMessageConnection<T> connection)
+    void IConnectionHandler<T>.OnConnected(IConnection<T> connection)
     {
         if (this.connection is null)
         {
@@ -124,12 +124,12 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
         }
     }
 
-    void IMessageHandler<T>.OnReceived(IMessageConnection<T> connection, Message message, T content)
-        => received.OnNext(message);
+    void IConnectionHandler<T>.OnReceived(IConnection<T> connection, Packet<T> packet)
+        => received.OnNext(packet.Value);
 
-    void IMessageHandler<T>.OnSignalReceived(IMessageConnection<T> connection, Message message, object? signal) { }
+    void IConnectionHandler<T>.OnSignalReceived(IConnection<T> connection, Packet packet) { }
 
-    void IMessageHandler<T>.OnDisconnected(IMessageConnection<T> connection, Exception? exception)
+    void IConnectionHandler<T>.OnDisconnected(IConnection<T> connection, Exception? exception)
     {
         if (this.connection == connection)
         {
@@ -137,7 +137,7 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
         }
     }
 
-    void IMessageHandler<T>.OnStopped(Exception? exception)
+    void IHostHandler<T>.OnHostStopped(Exception? exception)
         => Close(exception);
 
     private void Close(Exception? exception = null)
