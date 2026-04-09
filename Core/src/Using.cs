@@ -23,6 +23,8 @@ global using System.Text.Json.Schema;
 global using System.Threading.Tasks.Dataflow;
 global using System.Reactive.Threading.Tasks;
 global using System.Runtime.Serialization;
+global using System.Threading.Channels;
+global using System.Runtime.InteropServices;
 
 global using Markwardt;
 

@@ -1,7 +1,7 @@
 namespace Markwardt;
 
 public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeout = null) : IMessageProtocol<T, T>
-    where T : IPollPacket, new()
+    where T : IPollPacket, IConstructable<T>
 {
     public IMessageProcessor<T, T> CreateProcessor()
         => new Processor(pollInterval ?? TimeSpan.FromSeconds(1), pollTimeout ?? (pollInterval ?? TimeSpan.FromSeconds(1)) * 3);
@@ -51,7 +51,7 @@ public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeou
                 }
                 else
                 {
-                    TriggerSent(Message.New(new T()));
+                    TriggerSent(Message.New(T.New()));
                 }
             }
         }

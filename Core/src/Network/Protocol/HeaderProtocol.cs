@@ -1,5 +1,44 @@
 namespace Markwardt;
 
+public interface IHeaderPacket<THeader>
+{
+    Maybe<THeader> GetHeader();
+    void SetHeader(THeader header);
+}
+
+public abstract class HeaderrProcessor<T, THeader> : MessageProcessor<T>
+    where T : IHeaderPacket<THeader>
+    where THeader : struct
+{
+    private readonly InspectValueKey<THeader> headerKey = new(typeof(THeader).Name);
+
+    protected Maybe<THeader> GetHeader(Message message)
+        => message.Inspect(headerKey);
+
+    protected void SetHeader(Message message, THeader header)
+        => message.SetInspect(headerKey, header);
+
+    protected override void SendContent(Message message, T content)
+    {
+        if (message.Inspect(headerKey).TryGetValue(out THeader header))
+        {
+            content.SetHeader(header);
+        }
+
+        TriggerSent(message);
+    }
+
+    protected override void ReceiveContent(Message message, T content)
+    {
+        if (content.GetHeader().TryGetValue(out THeader header))
+        {
+            message.SetInspect(headerKey, header);
+        }
+
+        TriggerReceived(message);
+    }
+}
+
 public abstract class HeaderProcessor<T, THeader> : MessageProcessor<T>
     where THeader : class
 {

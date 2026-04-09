@@ -4,17 +4,13 @@ public abstract class ConvertProcessor<TSend, TReceive> : MessageProcessor<TSend
 {
     protected sealed override void SendContent(Message message, TSend content)
     {
-        TReceive converted = Convert(content);
-        message.RecycleContent();
-        message.Content = converted;
+        message.SetContent(Convert(content));
         TriggerSent(message);
     }
 
     protected sealed override void ReceiveContent(Message message, TReceive content)
     {
-        TSend reverted = Revert(content);
-        message.RecycleContent();
-        message.Content = reverted;
+        message.SetContent(Revert(content));
         TriggerReceived(message);
     }
 

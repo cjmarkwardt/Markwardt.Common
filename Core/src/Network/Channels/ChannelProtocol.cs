@@ -5,93 +5,95 @@ public static class ChannelProtocolExtensions
     public static IChannelManager? GetChannelManager(this IMessageSender sender)
         => MessageInterceptor.GetInterceptors(sender).OfType<IChannelManager>().FirstOrDefault();
 
-    public static IMessageChannel<T> OpenChannel<T>(this IMessageSender<T> sender, TimeSpan? autoAssertDelay)
-        => sender.GetChannelManager()?.OpenChannel(autoAssertDelay).As<T>() ?? throw new InvalidOperationException("Sender does not support channels");
+    public static IObservable<(Message Message, T Content, IObservable<(Message Message, T Content)> Messages)> GetReceivedChannels<T>(this IMessageSender<T> sender)
+        => sender.GetChannelManager()?.Received.Select(x => (x.Message, (T)x.Message.Content!, x.Messages.Select(y => (y, (T)y.Content!)))) ?? throw new InvalidOperationException("Sender does not support channels");
 
-    public static IMessageChannelValue<T> OpenChannelValue<T, TContent>(this IMessageSender<TContent> sender, TimeSpan sendInterval, T value, Func<T, TContent> write, TimeSpan? autoAssertDelay)
-        => new MessageChannelValue<T, TContent>(sender.OpenChannel(autoAssertDelay), sendInterval, value, write);
+    public static IMessageChannel<T> OpenChannel<T>(this IMessageSender<T> sender, T message, TimeSpan? autoAssertDelay, Action<Message>? configureMessage = null)
+        => sender.GetChannelManager()?.OpenChannel(Message.New(message).Configure(configureMessage), autoAssertDelay).As<T>() ?? throw new InvalidOperationException("Sender does not support channels");
+
+    public static IMessageChannelValue<T> OpenChannelValue<T, TContent>(this IMessageSender<TContent> sender, TimeSpan sendInterval, TContent content, T initialValue, Func<T, TContent> write, TimeSpan? autoAssertDelay)
+        => new MessageChannelValue<T, TContent>(sender.OpenChannel(content, autoAssertDelay), sendInterval, initialValue, write);
 }
 
 public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IMessageProtocol<T, T>
-    where T : IChannelPacket
+    where T : IHeaderPacket<ChannelHeader>, IConstructable<T>
 {
-    private readonly IValueWindow sequenceWindow = sequenceWindow ?? new ValueWindow(4000);
-
     public IMessageProcessor<T, T> CreateProcessor()
-        => new Processor(this);
+        => new Processor(sequenceWindow);
 
-    private sealed class Processor(ChannelProtocol<T> protocol) : ValueHeaderProcessor<T, MessageChannelHeader>
+    private sealed class Processor : HeaderrProcessor<T, ChannelHeader>
     {
-        protected override InspectValueKey<MessageChannelHeader> ValueHeaderKey => ChannelHeaderKey.Instance;
+        public Processor(IValueWindow? sequenceWindow)
+        {
+            interceptor = new(this);
+            this.sequenceWindow = sequenceWindow ?? new ValueWindow(4000);
+        }
 
-        protected override Maybe<MessageChannelHeader> GetValueHeader(T content)
-            => content.GetChannel();
+        private readonly Interceptor interceptor;
+        private readonly IValueWindow sequenceWindow;
 
-        protected override void SetValueHeader(T content, MessageChannelHeader header)
-            => content.SetChannel(header);
+        protected override IEnumerable<IMessageInterceptor> Interceptors => base.Interceptors.Concat([interceptor]);
 
-        protected override IMessageInterceptor? CreateInterceptor()
-            => new Interceptor(protocol);
+        protected override void OnDisconnected(Exception? exception)
+        {
+            base.OnDisconnected(exception);
+
+            interceptor.Dispose();
+        }
 
         private sealed class Interceptor : MessageInterceptor, IChannelManager
         {
-            public Interceptor(ChannelProtocol<T> protocol)
+            public Interceptor(Processor processor)
             {
-                this.protocol = protocol;
+                this.processor = processor;
                 this.RunInBackground(AutoAssert);
             }
 
-            private readonly ChannelProtocol<T> protocol;
-            private readonly IdSet channelIds = new(1);
-            private readonly Dictionary<int, int> sentSequences = [];
-            private readonly Dictionary<int, int> receivedSequences = [];
-            private readonly Dictionary<int, Channel> channels = [];
+            private readonly Processor processor;
+            private readonly IdSet channelIds = new();
+            private readonly Dictionary<int, OutputChannel> outputs = [];
+            private readonly Dictionary<int, InputChannel> inputs = [];
 
-            public IEnumerable<IMessageChannel> Channels => channels.Values;
+            public IEnumerable<IMessageChannel> Channels => outputs.Values;
 
-            public IMessageChannel OpenChannel(TimeSpan? autoAssertDelay)
+            private readonly BufferSubject<(Message Message, IObservable<Message> Messages)> received = new();
+            public IObservable<(Message Message, IObservable<Message> Messages)> Received => received;
+
+            public IMessageChannel OpenChannel(Message message, TimeSpan? autoAssertDelay)
             {
-                Channel channel = new(this, channelIds.Next(), autoAssertDelay);
-                channels.Add(channel.Id, channel);
+                OutputChannel channel = new(this, channelIds.Next(), autoAssertDelay);
+                outputs.Add(channel.Id, channel);
+                channel.SendOpen(channel.Id, message);
                 return channel;
             }
 
             protected override IEnumerable<Message>? Intercept(Message message)
             {
-                if (message.Inspect(ChannelHeaderKey.Instance).TryGetValue(out MessageChannelHeader header))
+                if (processor.GetHeader(message).TryGetValue(out ChannelHeader header))
                 {
-                    if (protocol.sequenceWindow.IsNext(receivedSequences.TryGetValue(header.Channel, out int sequence) ? sequence : null, header.Sequence))
+                    if (inputs.TryGetValue(header.Channel, out InputChannel? input))
                     {
-                        receivedSequences[header.Channel] = header.Sequence;
+                        if (header.Part is ChannelPart.Close)
+                        {
+                            input.Dispose();
+                            inputs.Remove(header.Channel);
+                        }
+                        else if (header.Part is ChannelPart.Data)
+                        {
+                            input.Receive(header.Sequence, message);
+                        }
                     }
-                    else
+                    else if (header.Part is ChannelPart.Open)
                     {
-                        return [];
+                        input = new(this);
+                        inputs.Add(header.Channel, input);
+                        received.OnNext((message, input.Messages));
                     }
+
+                    return [];
                 }
 
                 return null;
-            }
-
-            private void Send(int channel, bool assert, Message message)
-            {
-                int sequence = protocol.sequenceWindow.Next(sentSequences.TryGetValue(channel, out int sentSequence) ? sentSequence : null);
-                sentSequences[channel] = sequence;
-
-                if (assert)
-                {
-                    channels.GetValueOrDefault(channel)?.SetAsserted();
-                }
-                else
-                {
-                    message = message.Copy();
-                    message.Recycler = null;
-                }
-
-                message.Reliability = assert ? Reliability.Reliable : Reliability.Unreliable;
-                message.SetInspect(ChannelHeaderKey.Instance, new MessageChannelHeader(channel, sequence));
-
-                Sender.Send(message);
             }
 
             private async ValueTask AutoAssert(CancellationToken cancellation)
@@ -99,13 +101,37 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IMessageP
                 while (!cancellation.IsCancellationRequested)
                 {
                     await Task.Delay(250, cancellation);
-                    channels.Values.Where(x => x.NeedsAutoAssert).ForEach(x => x.Asserter.Send());
+                    outputs.Values.Where(x => x.NeedsAutoAssert).ForEach(x => x.Asserter.Send());
                 }
             }
 
-            private sealed class Channel : BaseDisposable, IMessageChannel
+            private sealed class InputChannel(Interceptor interceptor) : BaseDisposable
             {
-                public Channel(Interceptor interceptor, int id, TimeSpan? autoAssertDelay)
+                private int? sequence;
+
+                private readonly BufferSubject<Message> received = new();
+                public IObservable<Message> Messages => received;
+
+                public void Receive(int sequence, Message message)
+                {
+                    if (interceptor.processor.sequenceWindow.IsNext(this.sequence, sequence))
+                    {
+                        this.sequence = sequence;
+                        received.OnNext(message);
+                    }
+                }
+
+                protected override void OnDispose()
+                {
+                    base.OnDispose();
+
+                    received.Dispose();
+                }
+            }
+
+            private sealed class OutputChannel : BaseDisposable, IMessageChannel
+            {
+                public OutputChannel(Interceptor interceptor, int id, TimeSpan? autoAssertDelay)
                 {
                     this.interceptor = interceptor;
                     this.id = id;
@@ -116,8 +142,8 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IMessageP
                 private readonly Interceptor interceptor;
                 private readonly int id;
 
+                private int? sequence;
                 private Message? pendingMessage;
-                private bool isFirstSend = true;
                 private DateTime lastAssert;
 
                 public bool IsPending => pendingMessage is not null;
@@ -129,40 +155,57 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IMessageP
 
                 public IMessageAsserter Asserter { get; }
 
-                public void SetAsserted()
+                public void SendOpen(int channel, Message message)
+                    => Send(channel, ChannelPart.Open, Reliability.Ordered, message);
+
+                public void SendData(int channel, Message message)
+                {
+                    message = message.Copy();
+                    message.Recycler = null;
+                    Send(channel, ChannelPart.Data, Reliability.Unreliable, message);
+                }
+
+                public void SendAssert(int channel, Message message)
                 {
                     lastAssert = DateTime.UtcNow;
                     pendingMessage = null;
+                    Send(channel, ChannelPart.Data, Reliability.Reliable, message);
                 }
 
-                public void Send(Message message)
-                {
-                    if (isFirstSend)
-                    {
-                        isFirstSend = false;
-                        Asserter.Send(message);
-                    }
-                    else
-                    {
-                        pendingMessage?.Recycle();
-                        pendingMessage = message;
+                public void SendClose(int channel)
+                    => Send(channel, ChannelPart.Close, Reliability.Ordered, Message.New(T.New()));
 
-                        interceptor.Send(id, false, message);
-                    }
+                void IMessageSender.Send(Message message)
+                {
+                    pendingMessage?.Recycle();
+                    pendingMessage = message;
+
+                    SendData(id, message);
                 }
 
                 protected override void OnDispose()
                 {
                     base.OnDispose();
-
+                    
                     interceptor.channelIds.Release(id);
-                    interceptor.channels.Remove(id);
+                    interceptor.outputs.Remove(id);
+
+                    SendClose(id);
                 }
 
-                private sealed class MessageAsserter(Channel channel) : IMessageAsserter
+                private void Send(int channel, ChannelPart part, Reliability reliability, Message message)
+                {
+                    sequence = interceptor.processor.sequenceWindow.Next(sequence);
+
+                    message.Reliability = reliability;
+                    interceptor.processor.SetHeader(message, new(channel, part, sequence.Value));
+                    interceptor.Sender.Send(message);
+                }
+
+                private sealed class MessageAsserter(OutputChannel channel) : IMessageAsserter
                 {
                     public void Send(Message message)
-                        => channel.interceptor.Send(channel.id, true, message);
+                        => channel.SendAssert(channel.id, message);
 
                     public void Send()
                     {

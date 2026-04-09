@@ -64,18 +64,18 @@ public static class MessageProtocolExtensions
         => protocol.Chain(new ConvertProtocol<TReceive, TConverted>(convert, revert));
 
     public static IMessageProtocol<TSend, StandardPacket<TReceive>> AsStandardPackets<TSend, TReceive>(this IMessageProtocol<TSend, TReceive> protocol, IValueWindow? sequenceWindow = null, TimeSpan? pollInterval = null, TimeSpan? pollTimeout = null)
-        => protocol.Convert(x => new StandardPacket<TReceive>() { Content = x }, x => x.GetContent()).WithRequests().WithChannels(sequenceWindow).WithPolls(pollInterval, pollTimeout);
+        => protocol.Convert(StandardPacket<TReceive>.New, x => x.Content.NotNull()).WithRequests().WithChannels(sequenceWindow).WithPolls(pollInterval, pollTimeout);
 
     public static IMessageProtocol<TSend, TReceive> WithPolls<TSend, TReceive>(this IMessageProtocol<TSend, TReceive> protocol, TimeSpan? pollInterval = null, TimeSpan? pollTimeout = null)
-        where TReceive : IPollPacket, new()
+        where TReceive : IPollPacket, IConstructable<TReceive>
         => protocol.Chain(new PollProtocol<TReceive>(pollInterval, pollTimeout));
 
     public static IMessageProtocol<TSend, TReceive> WithRequests<TSend, TReceive>(this IMessageProtocol<TSend, TReceive> protocol)
-        where TReceive : IRequestPacket
+        where TReceive : IHeaderPacket<RequestHeader>
         => protocol.Chain(new RequestProtocol<TReceive>());
 
     public static IMessageProtocol<TSend, TReceive> WithChannels<TSend, TReceive>(this IMessageProtocol<TSend, TReceive> protocol, IValueWindow? sequenceWindow = null)
-        where TReceive : IChannelPacket
+        where TReceive : IHeaderPacket<ChannelHeader>, IConstructable<TReceive>
         => protocol.Chain(new ChannelProtocol<TReceive>(sequenceWindow));
 
     public static IMessageProtocol<TSend, string> AsJson<TSend, TReceive>(this IMessageProtocol<TSend, TReceive> protocol, JsonSerializerOptions? options = null)

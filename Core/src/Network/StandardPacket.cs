@@ -1,46 +1,69 @@
 namespace Markwardt;
 
 [DataContract]
-public record StandardPacket<T> : IPollPacket, IRequestPacket, IChannelPacket
+public record StandardPacket<T> : IPollPacket, IHeaderPacket<RequestHeader>, IHeaderPacket<ChannelHeader>, IConstructable<StandardPacket<T>>, IRecyclable
 {
+    private readonly static Pool<StandardPacket<T>> pool = new(() => new());
+
+    public static StandardPacket<T> New()
+        => pool.Get();
+
+    public static StandardPacket<T> New(T content)
+    {
+        StandardPacket<T> packet = New();
+        packet.Content = content;
+        return packet;
+    }
+
     [DataMember(Order = 1)]
     public int Request { get; set; }
 
     [DataMember(Order = 2)]
-    public int Channel { get; set; }
+    public int Response { get; set; }
 
     [DataMember(Order = 3)]
-    public int Sequence { get; set; }
+    public int Channel { get; set; }
 
     [DataMember(Order = 4)]
+    public ChannelPart ChannelPart { get; set; }
+
+    [DataMember(Order = 5)]
+    public int Sequence { get; set; }
+
+    [DataMember(Order = 6)]
     public T? Content { get; set; }
 
-    public void SetRequest(int request)
-    {
-        Request = request;
-        Channel = default;
-        Sequence = default;
-    }
-
-    public int GetRequest()
-        => Request;
-
-    public void SetChannel(MessageChannelHeader header)
+    public void Recycle()
     {
         Request = default;
-        Channel = header.Channel;
-        Sequence = header.Sequence;
+        Response = default;
+        Channel = default;
+        ChannelPart = default;
+        Sequence = default;
+        Content = default;
+
+        pool.Recycle(this);
     }
 
-    public Maybe<MessageChannelHeader> GetChannel()
-        => Channel > 0 ? new MessageChannelHeader(Channel, Sequence).Maybe() : default;
+    bool IPollPacket.IsPoll()
+        => Content is null && ChannelPart is not ChannelPart.Close;
 
-    public void SetContent(T content)
-        => Content = content;
+    Maybe<RequestHeader> IHeaderPacket<RequestHeader>.GetHeader()
+        => Request == 0 && Response == 0 ? default : new RequestHeader(Request != 0 ? RequestFlow.Request : RequestFlow.Response, Request != 0 ? Request : Response).Maybe();
 
-    public T GetContent()
-        => Content ?? throw new InvalidOperationException();
+    void IHeaderPacket<RequestHeader>.SetHeader(RequestHeader header)
+    {
+        Request = header.Flow is RequestFlow.Request ? header.Id : 0;
+        Response = header.Flow is RequestFlow.Response ? header.Id : 0;
+    }
 
-    public bool IsPoll()
-        => Content is null;
+    Maybe<ChannelHeader> IHeaderPacket<ChannelHeader>.GetHeader()
+        => Channel == 0 ? default : new ChannelHeader(Channel, ChannelPart, Sequence).Maybe();
+
+    void IHeaderPacket<ChannelHeader>.SetHeader(ChannelHeader header)
+    {
+        Channel = header.Channel;
+        ChannelPart = header.Part;
+        Sequence = header.Sequence;
+    }
 }

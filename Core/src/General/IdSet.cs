@@ -1,18 +1,26 @@
 namespace Markwardt;
 
-public class IdSet(int start = 0)
+public class IdSet(int start, TimeSpan reuseDelay)
 {
+    public IdSet()
+        : this(1, TimeSpan.FromMinutes(1)) { }
+
     private readonly HashSet<int> activeIds = [];
-    private readonly Queue<int> releasedIds = [];
+    private readonly Queue<ReleasedId> releasedIds = [];
 
     private int edge = start;
 
     public int Next()
     {
-        if (!releasedIds.TryDequeue(out int id))
+        int id;
+        if (releasedIds.TryPeek(out ReleasedId releasedId) && releasedId.ReuseTime <= DateTime.UtcNow)
         {
-            id = edge;
-            edge++;
+            releasedIds.Dequeue();
+            id = releasedId.Id;
+        }
+        else
+        {
+            id = edge++;
         }
 
         activeIds.Add(id);
@@ -22,6 +30,8 @@ public class IdSet(int start = 0)
     public void Release(int id)
     {
         activeIds.Remove(id);
-        releasedIds.Enqueue(id);
+        releasedIds.Enqueue(new ReleasedId(id, DateTime.UtcNow + reuseDelay));
     }
+
+    private record struct ReleasedId(int Id, DateTime ReuseTime);
 }

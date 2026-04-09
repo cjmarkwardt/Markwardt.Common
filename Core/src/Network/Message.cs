@@ -7,8 +7,7 @@ public class Message : IRecyclable, IPrioritizable, IInspectable
     public static Message New(object? content, IRecyclable? recycler = null)
     {
         Message message = pool.Get();
-        message.Content = content;
-        message.Recycler = recycler;
+        message.SetContent(content, recycler);
         return message;
     }
 
@@ -26,6 +25,13 @@ public class Message : IRecyclable, IPrioritizable, IInspectable
     public object? Source { get; set; }
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspections;
+
+    public void SetContent(object? content, IRecyclable? recycler = null)
+    {
+        RecycleContent();
+        Content = content;
+        Recycler = recycler ?? content as IRecyclable;
+    }
 
     public T GetContent<T>()
         => (T)Content!;

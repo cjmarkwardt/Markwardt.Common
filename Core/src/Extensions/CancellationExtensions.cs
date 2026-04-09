@@ -2,12 +2,6 @@ namespace Markwardt;
 
 public static class CancellationExtensions
 {
-    public static void CancelAndDispose(this CancellationTokenSource cancellation)
-    {
-        cancellation.Cancel();
-        cancellation.Dispose();
-    }
-
     public static void TryCancel(this CancellationTokenSource cancellation)
     {
         try

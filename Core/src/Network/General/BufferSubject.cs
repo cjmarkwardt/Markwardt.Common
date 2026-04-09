@@ -2,7 +2,8 @@ namespace Markwardt;
 
 public class BufferSubject<T> : BaseDisposable, ISubject<T>
 {
-    private readonly Queue<Event> queue = [];
+    private readonly LinkedList<Event> queue = [];
+    private readonly ExtendedDictionary<T, Queue<LinkedListNode<Event>>> nodeLookup = [];
     private readonly Subject<T> subject = new();
 
     public void OnCompleted()
@@ -13,6 +14,19 @@ public class BufferSubject<T> : BaseDisposable, ISubject<T>
 
     public void OnNext(T value)
         => Push(new(EventType.Next, value, default));
+
+    public void Remove(T value)
+    {
+        if (nodeLookup.TryGetValue(value, out Queue<LinkedListNode<Event>>? nodes) && nodes.TryDequeue(out LinkedListNode<Event>? node))
+        {
+            queue.Remove(node);
+
+            if (nodes.Count == 0)
+            {
+                nodeLookup.Remove(value);
+            }
+        }
+    }
 
     private void Push(Event push)
     {
@@ -33,7 +47,18 @@ public class BufferSubject<T> : BaseDisposable, ISubject<T>
         }
         else
         {
-            queue.Enqueue(push);
+            LinkedListNode<Event> node = queue.AddLast(push);
+
+            if (push.Type is EventType.Next)
+            {
+                if (!nodeLookup.TryGetValue(push.Value!, out Queue<LinkedListNode<Event>>? nodes))
+                {
+                    nodes = new();
+                    nodeLookup.Add(push.Value!, nodes);
+                }
+
+                nodes.Enqueue(node);
+            }
         }
     }
 
@@ -41,9 +66,12 @@ public class BufferSubject<T> : BaseDisposable, ISubject<T>
     {
         IDisposable subscription = subject.Subscribe(observer);
 
-        while (queue.TryDequeue(out Event push))
+        nodeLookup.Clear();
+        while (queue.First is not null)
         {
-            Push(push);
+            Event node = queue.First.Value;
+            queue.RemoveFirst();
+            Push(node);
         }
 
         return subscription;
@@ -56,6 +84,7 @@ public class BufferSubject<T> : BaseDisposable, ISubject<T>
         subject.Dispose();
         queue.ForEach(x => x.TryDispose());
         queue.Clear();
+        nodeLookup.Clear();
     }
 
     private enum EventType

@@ -1,55 +1,49 @@
 namespace Markwardt;
 
-public interface IContentPacket<T>
-{
-    T GetContent();
-    void SetContent(T content);
-}
-
 public static class RequestProtocolExtensions
 {
-    public static IMessageRequester? GetRequester(this IMessageSender sender)
-        => MessageInterceptor.GetInterceptors(sender).OfType<IMessageRequester>().FirstOrDefault();
+    public static IRequestManager? GetRequestManager(this IMessageSender sender)
+        => MessageInterceptor.GetInterceptors(sender).OfType<IRequestManager>().FirstOrDefault();
 
     public static async ValueTask<T> Request<T>(this IMessageSender<T> sender, T content, TimeSpan? timeout = null, CancellationToken cancellation = default)
     {
-        IMessageRequester? requester = sender.GetRequester() ?? throw new InvalidOperationException("Sender does not support requests");
+        IRequestManager? requester = sender.GetRequestManager() ?? throw new InvalidOperationException("Sender does not support requests");
         return (await requester.Request(Message.New(content), timeout, cancellation)).GetContent<T>();
     }
 }
 
 public class RequestProtocol<T> : IMessageProtocol<T, T>
-    where T : IRequestPacket
+    where T : IHeaderPacket<RequestHeader>
 {
     public IMessageProcessor<T, T> CreateProcessor()
         => new Processor();
 
-    private sealed class Processor : ValueHeaderProcessor<T, int>
+    private sealed class Processor : HeaderrProcessor<T, RequestHeader>
     {
-        protected override InspectValueKey<int> ValueHeaderKey => RequestIdKey.Instance;
+        public Processor()
+            => interceptor = new Interceptor(this);
 
-        protected override void SetValueHeader(T content, int header)
-            => content.SetRequest(header);
+        private readonly Interceptor interceptor;
 
-        protected override Maybe<int> GetValueHeader(T content)
+        protected override IEnumerable<IMessageInterceptor> Interceptors => base.Interceptors.Concat([interceptor]);
+
+        protected override void OnDisconnected(Exception? exception)
         {
-            int request = content.GetRequest();
-            return request == 0 ? default : request.Maybe();
+            base.OnDisconnected(exception);
+
+            interceptor.Dispose();
         }
 
-        protected override IMessageInterceptor? CreateInterceptor()
-            => new Interceptor();
-
-        private sealed class Interceptor : MessageInterceptor, IMessageRequester
+        private sealed class Interceptor(Processor processor) : MessageInterceptor, IRequestManager
         {
-            private readonly RequestManager requester = new();
+            private readonly Requester requests = new();
 
             public async ValueTask<Message> Request(Message message, TimeSpan? timeout, CancellationToken cancellation)
             {
-                IRequestManager.IOutgoingRequest request = requester.CreateRequest();
+                IRequest request = requests.CreateRequest();
 
                 message.Reliability = Reliability.Reliable;
-                message.SetInspect(RequestIdKey.Instance, request.RequestId);
+                processor.SetHeader(message, new(RequestFlow.Request, request.RequestId));
 
                 Sender.Send(message);
                 return await request.GetResponse(timeout, cancellation);
@@ -57,22 +51,22 @@ public class RequestProtocol<T> : IMessageProtocol<T, T>
 
             protected override IEnumerable<Message>? Intercept(Message message)
             {
-                int requestId = message.Inspect(RequestIdKey.Instance).ValueOr(0);
-                if (requestId != 0)
+                if (processor.GetHeader(message).TryGetValue(out RequestHeader header))
                 {
-                    if (requester.Receive(requestId, message) is IRequestManager.IIncomingRequest request)
+                    if (header.Flow is RequestFlow.Request)
                     {
                         message.Responder = new TransformedSender(Sender, response =>
                         {
                             response.Reliability = Reliability.Reliable;
-                            response.SetInspect(RequestIdKey.Instance, -requestId);
+                            processor.SetHeader(response, new RequestHeader(RequestFlow.Response, header.Id));
                             return response;
                         });
 
                         return [message];
                     }
-                    else
+                    else if (header.Flow is RequestFlow.Response)
                     {
+                        requests.ReceiveResponse(header.Id, message);
                         return [];
                     }
                 }
