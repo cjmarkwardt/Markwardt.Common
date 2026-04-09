@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="Adapters/Electron/Electron.csproj" />
+  <Project Path="Adapters/Godot/Godot.csproj" />
+  <Project Path="Adapters/LiteNetLib/LiteNetLib.csproj" />
+  <Project Path="Adapters/OpenAi/OpenAi.csproj" />
+  <Project Path="Adapters/Protobuf/Protobuf.csproj" />
+  <Project Path="Adapters/Steamworks/Steamworks.csproj" />
+  <Project Path="Core/Core.csproj" />
+  <Project Path="Sandbox/Sandbox.csproj" />
+</Solution>
