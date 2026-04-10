@@ -9,7 +9,7 @@ public interface IConnection : IDisposable, ISender
 
 public interface IConnection<T> : IConnection, ISender<T>
 {
-    IObservable<Packet<T>> ContentReceived => Received.Select(packet => packet.AsContent<T>());
+    IObservable<Packet<T>> ContentReceived => Received.SelectWhere(packet => packet.TryAsContent<T>());
 }
 
 public static class ConnectionExtensions
@@ -27,9 +27,9 @@ public static class ConnectionExtensions
                 {
                     handler.OnDisconnected(connection, disconnectSignal.Exception);
                 }
-                else if (packet.Content is T content)
+                else if (packet.TryAsContent<T>().TryGetValue(out Packet<T> contentPacket))
                 {
-                    handler.OnReceived(connection, packet.AsContent<T>());
+                    handler.OnReceived(connection, contentPacket);
                 }
                 else
                 {

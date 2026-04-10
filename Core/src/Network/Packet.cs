@@ -36,8 +36,8 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
     public T GetContent<T>()
         => (T)Content!;
 
-    public Packet<T> AsContent<T>()
-        => new(this);
+    public Maybe<Packet<T>> TryAsContent<T>()
+        => Content is T ? new Packet<T>(this).Maybe() : default;
 
     public Packet Configure(Action<Packet>? configure)
     {
