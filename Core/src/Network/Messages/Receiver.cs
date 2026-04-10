@@ -10,14 +10,14 @@ public abstract class Receiver<T> : IReceiver
 {
     public void Receive(Packet packet)
     {
-        if (packet.Content is T content && Filter(packet, content))
+        if (packet.TryAsContent<T>().TryGetValue(out Packet<T> contentPacket) && Filter(contentPacket))
         {
-            Receive(packet, content);
+            Receive(contentPacket);
         }
     }
 
-    protected abstract void Receive(Packet packet, T content);
+    protected abstract void Receive(Packet<T> packet);
 
-    protected virtual bool Filter(Packet packet, T content)
+    protected virtual bool Filter(Packet<T> packet)
         => true;
 }
