@@ -89,7 +89,7 @@ public readonly record struct Packet<T>(Packet Value)
     public readonly T Content => Value.GetContent<T>();
 
     public void Respond(T content, Action<Packet>? configure = null)
-        => Value.Responder?.Send(Packet.New(content).Configure(configure));
+        => Value.Responder.NotNull("Cannot respond when responder is null").Send(Packet.New(content).Configure(configure));
 
     public void Recycle()
         => Value.Recycle();

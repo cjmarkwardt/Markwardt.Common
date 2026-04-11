@@ -21,7 +21,7 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IConnecti
     public IConnectionProcessor<T, T> CreateProcessor()
         => new Processor(sequenceWindow);
 
-    private sealed class Processor : HeaderrProcessor<T, ChannelHeader>
+    private sealed class Processor : HeaderProcessor<T, ChannelHeader>
     {
         public Processor(IValueWindow? sequenceWindow)
         {

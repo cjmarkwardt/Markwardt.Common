@@ -18,7 +18,7 @@ public class RequestProtocol<T> : IConnectionProtocol<T, T>
     public IConnectionProcessor<T, T> CreateProcessor()
         => new Processor();
 
-    private sealed class Processor : HeaderrProcessor<T, RequestHeader>
+    private sealed class Processor : HeaderProcessor<T, RequestHeader>
     {
         public Processor()
             => interceptor = new Interceptor(this);
