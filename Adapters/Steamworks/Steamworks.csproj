@@ -2,15 +2,11 @@
 
   <PropertyGroup>
     <AssemblyName>Markwardt.Common.Steamworks</AssemblyName>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
+    <PackageReference Include="Steamworks.NET" />
   </ItemGroup>
 
   <ItemGroup>

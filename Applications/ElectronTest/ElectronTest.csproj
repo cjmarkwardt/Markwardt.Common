@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ElectronSource>../ElectronBridgeBuilder/output</ElectronSource>
+    <ElectronVersion>41.2.0</ElectronVersion>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  
+  <Target Name="ZipElectron" BeforeTargets="BeforeBuild">
+    <Exec Command="npm --prefix frontend install" />
+    <ZipDirectory SourceDirectory="frontend/dist" DestinationFile="frontend/build/frontend.zip" Overwrite="true" />
+  </Target>
+  
+  <ItemGroup>
+    <EmbeddedResource LogicalName="electron" Include="$(ElectronSource)/electron-$(ElectronVersion)-$(RuntimeIdentifier).zip" />
+    <EmbeddedResource LogicalName="frontend" Include="frontend/build/frontend.zip" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Adapters\Electron\Electron.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+{
+  "name": "markwardt-electron-bridge",
+  "main": "main.js",
+  "type": "module",
+  "dependencies": {
+    "electron": "^40.6.0"
+  }
+}

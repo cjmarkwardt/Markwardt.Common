@@ -1,0 +1,9 @@
+{
+    "profiles": {
+        "default": {
+            "commandName": "Project",
+            "workingDirectory": ".",
+            "commandLineArgs": "41.2.0 linux-x64,win-x64"
+        }
+    }
+}

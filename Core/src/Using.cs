@@ -29,12 +29,6 @@ global using System.Runtime.InteropServices;
 global using Markwardt;
 global using Markwardt.Network;
 
-global using ImpromptuInterface;
-
-global using Microsoft.Extensions.DependencyInjection;
-
-global using Nito.AsyncEx;
-
 global using Range = System.Range;
 global using Expression = System.Linq.Expressions.Expression;
 global using Environment = System.Environment;

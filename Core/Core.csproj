@@ -2,22 +2,14 @@
 
   <PropertyGroup>
     <AssemblyName>Markwardt.Common.Core</AssemblyName>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <DebugType>embedded</DebugType>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ImpromptuInterface" Version="8.0.6" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
-    <PackageReference Include="Nito.AsyncEx" Version="5.1.2" />
-    <PackageReference Include="srp" Version="1.0.7" />
-    <PackageReference Include="System.Linq.Async" Version="6.0.3" />
-    <PackageReference Include="System.Memory.Data" Version="10.0.3" />
-    <PackageReference Include="System.Reactive" Version="6.1.0" />
-    <PackageReference Include="System.Reactive.Linq" Version="6.1.0" />
+    <PackageReference Include="srp" />
+    <PackageReference Include="System.Linq.Async" />
+    <PackageReference Include="System.Memory.Data" />
+    <PackageReference Include="System.Reactive" />
+    <PackageReference Include="System.Reactive.Linq" />
   </ItemGroup>
 
 </Project>

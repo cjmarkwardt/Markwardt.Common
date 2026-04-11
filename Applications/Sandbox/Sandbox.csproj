@@ -1,15 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>Markwardt.Common.LiteNetLib</AssemblyName>
+    <AssemblyName>Markwardt.Common.Sandbox</AssemblyName>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LiteNetLib" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\Core\Core.csproj" />
+    <ProjectReference Include="..\..\Adapters\LiteNetLib\LiteNetLib.csproj" />
   </ItemGroup>
 
 </Project>
