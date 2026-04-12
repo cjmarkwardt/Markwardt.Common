@@ -18,11 +18,11 @@ public abstract class HeaderProcessor<T, THeader> : ConnectionProcessor<T>
     protected void SetHeader(Packet packet, THeader header)
         => packet.SetInspect(headerKey, header);
 
-    protected override void SendContent(Packet packet, T content)
+    protected override void SendContent(Packet<T> packet)
     {
-        if (packet.Inspect(headerKey).TryGetValue(out THeader header))
+        if (packet.Inner.Inspect(headerKey).TryGetValue(out THeader header))
         {
-            content.SetHeader(header);
+            packet.Content.SetHeader(header);
         }
 
         TriggerSent(packet);

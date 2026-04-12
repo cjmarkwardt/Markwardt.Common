@@ -7,8 +7,8 @@ public class ConfigureProtocol<T>(Action<T, Packet> configure) : IConnectionProt
 
     private sealed class Processor(Action<T, Packet> configure) : ConnectionProcessor<T>
     {
-        protected override void SendContent(Packet packet, T content)
-            => TriggerSent(Configure(packet, content));
+        protected override void SendContent(Packet<T> packet)
+            => TriggerSent(Configure(packet, packet.Content));
 
         protected override void ReceiveContent(Packet packet, T content)
             => TriggerReceived(Configure(packet, content));

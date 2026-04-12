@@ -37,7 +37,7 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
     protected virtual void ReceiveSignal(Packet packet)
         => TriggerReceived(packet);
 
-    protected override void SendSignal(Packet packet)
+    protected override void SendSignal(Packet<TSend> packet)
         => TriggerSent(packet);
 
     protected void TriggerSent(Packet packet)
@@ -56,10 +56,10 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
 
 public class ConnectionProcessor<T> : ConnectionProcessor<T, T>
 {
-    protected override void SendContent(Packet packet, T content)
+    protected override void SendContent(Packet<T> packet)
         => TriggerSent(packet);
 
-    protected override void SendSignal(Packet packet)
+    protected override void SendSignal(Packet<T> packet)
         => TriggerSent(packet);
 
     protected override void ReceiveContent(Packet packet, T content)

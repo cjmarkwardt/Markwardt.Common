@@ -48,7 +48,7 @@ public class RequestProtocol<T> : IConnectionProtocol<T, T>
                 Sender.Send(packet);
                 return await request.GetResponse(timeout, cancellation);
             }
-
+            
             protected override IEnumerable<Packet>? Intercept(Packet packet)
             {
                 if (processor.GetHeader(packet).TryGetValue(out RequestHeader header))

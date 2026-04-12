@@ -32,9 +32,9 @@ internal class TcpConnection : Connection<ReadOnlyMemory<byte>>
     private readonly (string Host, int Port)? target;
     private readonly MemoryPool<byte>? pool;
     private readonly IDisposable run;
-    private readonly BufferBlock<Packet> sendQueue = new();
+    private readonly BufferBlock<Packet<ReadOnlyMemory<byte>>> sendQueue = new();
 
-    protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
+    protected override void SendContent(Packet<ReadOnlyMemory<byte>> packet)
         => sendQueue.Post(packet);
 
     protected override void OnDisconnected(Exception? exception)
@@ -113,8 +113,8 @@ internal class TcpConnection : Connection<ReadOnlyMemory<byte>>
 
         while (!cancellation.IsCancellationRequested)
         {
-            Packet packet = await sendQueue.ReceiveAsync(cancellation);
-            await stream.WriteAsync((ReadOnlyMemory<byte>)packet.Value!, cancellation);
+            Packet<ReadOnlyMemory<byte>> packet = await sendQueue.ReceiveAsync(cancellation);
+            await stream.WriteAsync(packet.Content, cancellation);
             packet.Recycle();
         }
     }

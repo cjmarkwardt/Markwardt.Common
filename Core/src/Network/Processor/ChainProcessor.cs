@@ -22,10 +22,10 @@ public class ChainProcessor<TSend, TTransport, TReceive> : ConnectionProcessor<T
 
     protected override IEnumerable<INetworkInterceptor> Interceptors => base.Interceptors.Concat(NetworkInterceptor.GetInterceptors(source)).Concat(NetworkInterceptor.GetInterceptors(chain));
 
-    protected override void SendContent(Packet packet, TSend content)
+    protected override void SendContent(Packet<TSend> packet)
         => source.Send(packet);
 
-    protected override void SendSignal(Packet packet)
+    protected override void SendSignal(Packet<TSend> packet)
         => source.Send(packet);
 
     protected override void ReceiveContent(Packet packet, TReceive content)

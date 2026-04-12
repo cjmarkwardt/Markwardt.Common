@@ -20,7 +20,7 @@ public class LoopConnection<T> : Connection<T>
 
     private LoopConnection<T> target = null!;
 
-    protected override void SendContent(Packet packet, T content)
+    protected override void SendContent(Packet<T> packet)
         => target.TriggerReceived(packet);
 
     protected override void OnDisconnected(Exception? exception)

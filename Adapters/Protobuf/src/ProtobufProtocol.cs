@@ -13,12 +13,12 @@ public class ProtobufProtocol<T>(bool prefixLength = true, MemoryPool<byte>? poo
 
     private sealed class Processor(bool prefixLength, MemoryPool<byte> pool, ILengthPrefixWriter prefixWriter) : ConnectionProcessor<T, ReadOnlyMemory<byte>>
     {
-        protected override void SendContent(Packet packet, T content)
+        protected override void SendContent(Packet<T> packet)
         {
-            MeasureState<T> measure = Serializer.Measure(content);
+            MeasureState<T> measure = Serializer.Measure(packet.Content);
             Buffer<byte> buffer = prefixWriter.WriteStream(pool, stream => measure.Serialize(stream), (int)measure.Length, prefixLength);
 
-            packet.Set(buffer.Memory.AsReadOnly(), buffer);
+            packet.Inner.Set(buffer.Memory.AsReadOnly(), buffer);
             TriggerSent(packet);
         }
 

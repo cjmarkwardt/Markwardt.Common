@@ -19,8 +19,8 @@ public class LiteNetConnector(string host, int port, string? key = null) : IConn
         private readonly NetManager network;
         private readonly NetPeer peer;
 
-        protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
-            => peer.Send(packet, content);
+        protected override void SendContent(Packet<ReadOnlyMemory<byte>> packet)
+            => peer.Send(packet, packet.Content);
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
             => request.Reject();

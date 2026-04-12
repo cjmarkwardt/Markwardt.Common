@@ -7,11 +7,11 @@ public class StringBytesProtocol(Encoding? encoding = null, bool prefixLength = 
 
     private sealed class Processor(Encoding encoding, bool prefixLength, MemoryPool<byte> pool, ILengthPrefixWriter prefixWriter) : ConnectionProcessor<string, ReadOnlyMemory<byte>>
     {
-        protected override void SendContent(Packet packet, string content)
+        protected override void SendContent(Packet<string> packet)
         {
-            Buffer<byte> buffer = prefixWriter.WriteMemory(pool, encoding.GetByteCount(content), data => encoding.GetBytes(content, data.Span), prefixLength);
+            Buffer<byte> buffer = prefixWriter.WriteMemory(pool, encoding.GetByteCount(packet.Content), data => encoding.GetBytes(packet.Content, data.Span), prefixLength);
             
-            packet.Set(buffer.Memory.AsReadOnly());
+            packet.Inner.Set(buffer.Memory.AsReadOnly());
             TriggerSent(packet);
         }
 

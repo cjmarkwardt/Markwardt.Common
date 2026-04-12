@@ -2,9 +2,9 @@ namespace Markwardt.Network;
 
 public abstract class ConvertProcessor<TSend, TReceive> : ConnectionProcessor<TSend, TReceive>
 {
-    protected sealed override void SendContent(Packet packet, TSend content)
+    protected sealed override void SendContent(Packet<TSend> packet)
     {
-        packet.Set(Convert(content));
+        packet.Inner.Set(Convert(packet.Content));
         TriggerSent(packet);
     }
 

@@ -14,9 +14,9 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
 
         private int pendingPackets;
 
-        protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
+        protected override void SendContent(Packet<ReadOnlyMemory<byte>> packet)
         {
-            outgoingSequences.Add(new OutgoingSequence(packet, content, packetSize));
+            outgoingSequences.Add(new OutgoingSequence(packet, packet.Content, packetSize));
             SendPending();
         }
 

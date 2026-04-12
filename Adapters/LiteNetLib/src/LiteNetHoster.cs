@@ -75,8 +75,8 @@ public class LiteNetHoster(int port, string? key = null) : IHoster<ReadOnlyMemor
             public void Disconnect(DisconnectInfo info)
                 => SetDisconnected(new RemoteDisconnectException(info.Reason.ToString()));
 
-            protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
-                => peer.Send(packet, content);
+            protected override void SendContent(Packet<ReadOnlyMemory<byte>> packet)
+                => peer.Send(packet, packet.Content);
 
             protected override void OnDisconnected(Exception? exception)
             {

@@ -22,25 +22,26 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
     public void Send(Packet packet)
     {
-        if (packet.Value is T content)
+        Packet<T> typed = packet.As<T>();
+        if (typed.IsContent)
         {
             if (State is ConnectionState.Connected)
             {
-                SendContent(packet, content);
+                SendContent(typed);
             }
         }
         else
         {
-            SendSignal(packet);
+            SendSignal(typed);
         }
     }
 
     protected void ChainInspections(object target)
         => inspectable.ChainInspections(target);
 
-    protected abstract void SendContent(Packet packet, T content);
+    protected abstract void SendContent(Packet<T> packet);
 
-    protected virtual void SendSignal(Packet packet) { }
+    protected virtual void SendSignal(Packet<T> packet) { }
 
     protected virtual void OnConnected()
     {

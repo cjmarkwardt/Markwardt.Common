@@ -21,9 +21,9 @@ internal class SteamConnection : Connection<ReadOnlyMemory<byte>>
 
     private readonly SteamConnectionHandle handle;
 
-    protected override void SendContent(Packet packet, ReadOnlyMemory<byte> content)
+    protected override void SendContent(Packet<ReadOnlyMemory<byte>> packet)
     {
-        EResult result = handle.Write(content.Span, packet.Reliability is Reliability.Unreliable ? 0 : 8);
+        EResult result = handle.Write(packet.Content.Span, packet.Reliability is Reliability.Unreliable ? 0 : 8);
         if (result is not EResult.k_EResultOK)
         {
             SetDisconnected(new RemoteDisconnectException($"Failed to send ({result})"));

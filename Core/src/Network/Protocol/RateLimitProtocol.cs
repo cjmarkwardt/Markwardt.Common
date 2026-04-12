@@ -11,9 +11,9 @@ public class RateLimitProtocol(int rate) : IConnectionProtocol<ReadOnlyMemory<by
 
         private bool isWriting;
 
-        protected override async void SendContent(Packet packet, ReadOnlyMemory<byte> content)
+        protected override async void SendContent(Packet<ReadOnlyMemory<byte>> packet)
         {
-            sendQueue.Enqueue(new QueuedMessage(packet, content.Length));
+            sendQueue.Enqueue(new QueuedMessage(packet, packet.Content.Length));
 
             if (!isWriting)
             {
