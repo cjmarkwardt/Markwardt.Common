@@ -10,7 +10,7 @@ public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IConnection<T
         inspections = new Dictionary<IInspectKey, object>().ChainInspections(processor).ChainInspections(connection);
 
         processor.Sent.Subscribe(OnProcessorSent);
-        connection.Received.Subscribe(OnConnectionReceived);
+        connection.Received.Select(x => x.Inner).Subscribe(OnConnectionReceived);
     }
 
     private readonly IConnectionProcessor<TSend, TReceive> processor;
@@ -19,7 +19,7 @@ public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IConnection<T
 
     private Exception? disconnectException;
 
-    public IObservable<Packet> Received => processor.Received;
+    public IObservable<Packet> Received => processor.Received.Select(x => x.Inner);
 
     IEnumerable<INetworkInterceptor> INetworkInterceptable.Interceptors => NetworkInterceptor.GetInterceptors(processor).Concat(NetworkInterceptor.GetInterceptors(connection));
 
@@ -33,7 +33,7 @@ public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IConnection<T
 
     private void OnProcessorSent(Packet packet)
     {
-        if (packet.Content is DisconnectedSignal signal)
+        if (packet.Value is DisconnectedSignal signal)
         {
             disconnectException = signal.Exception;
             processor.Receive(packet);

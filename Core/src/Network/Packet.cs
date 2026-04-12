@@ -4,10 +4,10 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
 {
     private static readonly Pool<Packet> pool = new(() => new());
 
-    public static Packet New(object? content, IRecyclable? recycler = null)
+    public static Packet New(object? value, IRecyclable? recycler = null)
     {
         Packet packet = pool.Get();
-        packet.SetContent(content, recycler);
+        packet.Set(value, recycler);
         return packet;
     }
 
@@ -15,7 +15,8 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
 
     private readonly Dictionary<IInspectKey, object> inspections = [];
 
-    public object? Content { get; set; }
+    private Maybe<object?> value = default;
+    public object? Value { get => value.Value; set => this.value = value.Maybe(); }
 
     public string? Id { get; set; }
     public int Priority { get; set; }
@@ -26,18 +27,15 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspections;
 
-    public void SetContent(object? content, IRecyclable? recycler = null)
+    public void Set(object? value, IRecyclable? recycler = null)
     {
         RecycleContent();
-        Content = content;
-        Recycler = recycler ?? content as IRecyclable;
+        this.value = value.Maybe();
+        Recycler = recycler ?? value as IRecyclable;
     }
 
-    public T GetContent<T>()
-        => (T)Content!;
-
-    public Maybe<Packet<T>> TryAsContent<T>()
-        => Content is T ? new Packet<T>(this).Maybe() : default;
+    public Packet<T> As<T>()
+        => new(this);
 
     public Packet Configure(Action<Packet>? configure)
     {
@@ -45,18 +43,11 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
         return this;
     }
 
-    public void RecycleContent()
-    {
-        Recycler?.Recycle();
-        Content = default;
-        Recycler = default;
-    }
-
     public Packet Copy()
     {
         Packet copy = pool.Get();
 
-        copy.Content = Content;
+        copy.value = value;
         copy.Id = Id;
         copy.Priority = Priority;
         copy.Reliability = Reliability;
@@ -81,16 +72,47 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
 
         pool.Recycle(this);
     }
+
+    public void RecycleContent()
+    {
+        Recycler?.Recycle();
+        value = default;
+        Recycler = default;
+    }
 }
 
-public readonly record struct Packet<T>(Packet Value)
+public readonly record struct Packet<T>(Packet Inner)
 {
-    public readonly bool CanRespond => Value.Responder is not null;
-    public readonly T Content => Value.GetContent<T>();
+    public static implicit operator Packet(Packet<T> packet)
+        => packet.Inner;
+
+    public readonly bool CanRespond => Inner.Responder is not null;
+
+    public readonly bool IsContent => Inner.Value is T;
+    public readonly bool IsSignal => Inner.Value is not T && Inner.Value is not null;
+
+    public readonly T Content => IsContent ? (T)Inner.Value! : throw new InvalidOperationException("Packet does not contain content of type " + typeof(T).Name);
+    public readonly object Signal => IsSignal ? Inner.Value! : throw new InvalidOperationException("Packet does not contain a signal");
+
+    public readonly string? Id { get => Inner.Id; init => Inner.Id = value; }
+    public readonly int Priority { get => Inner.Priority; init => Inner.Priority = value; }
+    public readonly Reliability Reliability { get => Inner.Reliability; init => Inner.Reliability = value; }
+    public readonly IRecyclable? Recycler { get => Inner.Recycler; init => Inner.Recycler = value; }
+    public readonly ISender? Responder { get => Inner.Responder; init => Inner.Responder = value; }
+    public readonly object? Source { get => Inner.Source; init => Inner.Source = value; }
+
+    public Packet<T2> As<T2>()
+        => new(Inner);
+
+    public void SetContent(T value, IRecyclable? recycler = null)
+        => Inner.Set(value, recycler);
+
+    public void SetSignal(object signal)
+        => Inner.Set(signal);
 
     public void Respond(T content, Action<Packet>? configure = null)
-        => Value.Responder.NotNull("Cannot respond when responder is null").Send(Packet.New(content).Configure(configure));
+        => Inner.Responder.NotNull("Cannot respond when responder is null").Send(Packet.New(content).Configure(configure));
 
     public void Recycle()
-        => Value.Recycle();
+        => Inner.Recycle();
 }

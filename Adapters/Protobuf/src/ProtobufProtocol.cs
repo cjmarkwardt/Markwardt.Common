@@ -18,10 +18,7 @@ public class ProtobufProtocol<T>(bool prefixLength = true, MemoryPool<byte>? poo
             MeasureState<T> measure = Serializer.Measure(content);
             Buffer<byte> buffer = prefixWriter.WriteStream(pool, stream => measure.Serialize(stream), (int)measure.Length, prefixLength);
 
-            packet.RecycleContent();
-            packet.Content = buffer.Memory.AsReadOnly();
-            packet.Recycler = buffer;
-
+            packet.Set(buffer.Memory.AsReadOnly(), buffer);
             TriggerSent(packet);
         }
 
@@ -30,9 +27,7 @@ public class ProtobufProtocol<T>(bool prefixLength = true, MemoryPool<byte>? poo
             content = prefixWriter.ReadData(content, prefixLength);
             T value = Serializer.Deserialize<T>(content);
 
-            packet.RecycleContent();
-            packet.Content = value;
-
+            packet.Set(value);
             TriggerReceived(packet);
         }
     }

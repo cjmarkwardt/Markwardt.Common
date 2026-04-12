@@ -6,7 +6,7 @@ public static class ChannelProtocolExtensions
         => NetworkInterceptor.GetInterceptors(sender).OfType<IChannelManager>().FirstOrDefault();
 
     public static IObservable<(Packet Message, T Content, IObservable<(Packet Message, T Content)> Messages)> GetReceivedChannels<T>(this ISender<T> sender)
-        => sender.GetChannelManager()?.Received.Select(x => (x.Message, (T)x.Message.Content!, x.Messages.Select(y => (y, (T)y.Content!)))) ?? throw new InvalidOperationException("Sender does not support channels");
+        => sender.GetChannelManager()?.Received.Select(x => (x.Message, (T)x.Message.Value!, x.Messages.Select(y => (y, (T)y.Value!)))) ?? throw new InvalidOperationException("Sender does not support channels");
 
     public static IChannel<T> OpenChannel<T>(this ISender<T> sender, T packet, TimeSpan? autoAssertDelay, Action<Packet>? configureMessage = null)
         => sender.GetChannelManager()?.OpenChannel(Packet.New(packet).Configure(configureMessage), autoAssertDelay).As<T>() ?? throw new InvalidOperationException("Sender does not support channels");

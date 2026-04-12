@@ -22,7 +22,7 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
     public void Send(Packet packet)
     {
-        if (packet.Content is T content)
+        if (packet.Value is T content)
         {
             if (State is ConnectionState.Connected)
             {
@@ -56,11 +56,11 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
     protected void TriggerReceived(Packet packet)
     {
-        if (packet.Content is ConnectedSignal signal)
+        if (packet.Value is ConnectedSignal signal)
         {
             OnConnected();
         }
-        else if (packet.Content is DisconnectedSignal disconnectedSignal)
+        else if (packet.Value is DisconnectedSignal disconnectedSignal)
         {
             OnDisconnected(disconnectedSignal.Exception);
         }

@@ -4,13 +4,13 @@ public abstract class ConvertProcessor<TSend, TReceive> : ConnectionProcessor<TS
 {
     protected sealed override void SendContent(Packet packet, TSend content)
     {
-        packet.SetContent(Convert(content));
+        packet.Set(Convert(content));
         TriggerSent(packet);
     }
 
     protected sealed override void ReceiveContent(Packet packet, TReceive content)
     {
-        packet.SetContent(Revert(content));
+        packet.Set(Revert(content));
         TriggerReceived(packet);
     }
 

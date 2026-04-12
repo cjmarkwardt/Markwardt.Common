@@ -114,7 +114,7 @@ internal class TcpConnection : Connection<ReadOnlyMemory<byte>>
         while (!cancellation.IsCancellationRequested)
         {
             Packet packet = await sendQueue.ReceiveAsync(cancellation);
-            await stream.WriteAsync((ReadOnlyMemory<byte>)packet.Content!, cancellation);
+            await stream.WriteAsync((ReadOnlyMemory<byte>)packet.Value!, cancellation);
             packet.Recycle();
         }
     }

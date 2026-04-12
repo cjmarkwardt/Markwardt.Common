@@ -8,7 +8,7 @@ public static class RequestProtocolExtensions
     public static async ValueTask<T> Request<T>(this ISender<T> sender, T content, TimeSpan? timeout = null, CancellationToken cancellation = default)
     {
         IRequestManager? requester = sender.GetRequestManager() ?? throw new InvalidOperationException("Sender does not support requests");
-        return (await requester.Request(Packet.New(content), timeout, cancellation)).GetContent<T>();
+        return (await requester.Request(Packet.New(content), timeout, cancellation)).As<T>().Content;
     }
 }
 

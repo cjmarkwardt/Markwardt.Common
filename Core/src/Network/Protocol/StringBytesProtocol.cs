@@ -11,20 +11,13 @@ public class StringBytesProtocol(Encoding? encoding = null, bool prefixLength = 
         {
             Buffer<byte> buffer = prefixWriter.WriteMemory(pool, encoding.GetByteCount(content), data => encoding.GetBytes(content, data.Span), prefixLength);
             
-            packet.RecycleContent();
-            packet.Content = buffer.Memory.AsReadOnly();
-            packet.Recycler = buffer;
-            
+            packet.Set(buffer.Memory.AsReadOnly());
             TriggerSent(packet);
         }
 
         protected override void ReceiveContent(Packet packet, ReadOnlyMemory<byte> content)
         {
-            content = prefixWriter.ReadData(content, prefixLength);
-
-            packet.RecycleContent();
-            packet.Content = encoding.GetString(content.Span);
-
+            packet.Set(encoding.GetString(prefixWriter.ReadData(content, prefixLength).Span));
             TriggerReceived(packet);
         }
     }

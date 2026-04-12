@@ -10,9 +10,10 @@ public abstract class Receiver<T> : IReceiver
 {
     public void Receive(Packet packet)
     {
-        if (packet.TryAsContent<T>().TryGetValue(out Packet<T> contentPacket) && Filter(contentPacket))
+        Packet<T> typed = packet.As<T>();
+        if (typed.IsContent && Filter(typed))
         {
-            Receive(contentPacket);
+            Receive(typed);
         }
     }
 

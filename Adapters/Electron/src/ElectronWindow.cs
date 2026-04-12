@@ -125,9 +125,9 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
     }
 
     void IConnectionHandler<T>.OnReceived(IConnection<T> connection, Packet<T> packet)
-        => received.OnNext(packet.Value);
+        => received.OnNext(packet);
 
-    void IConnectionHandler<T>.OnSignalReceived(IConnection<T> connection, Packet packet) { }
+    void IConnectionHandler<T>.OnSignalReceived(IConnection<T> connection, Packet<T> packet) { }
 
     void IConnectionHandler<T>.OnDisconnected(IConnection<T> connection, Exception? exception)
     {

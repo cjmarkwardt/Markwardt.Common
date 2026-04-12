@@ -11,9 +11,9 @@ public class ChainProcessor<TSend, TTransport, TReceive> : ConnectionProcessor<T
         ChainInspections(chain);
 
         source.Sent.Subscribe(chain.Send);
-        chain.Received.Subscribe(source.Receive);
+        chain.Received.Select(x => x.Inner).Subscribe(source.Receive);
 
-        source.Received.Subscribe(TriggerReceived);
+        source.Received.Select(x => x.Inner).Subscribe(TriggerReceived);
         chain.Sent.Subscribe(TriggerSent);
     }
 

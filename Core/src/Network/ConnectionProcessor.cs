@@ -22,7 +22,7 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
 
     public void Receive(Packet packet)
     {
-        if (packet.Content is TReceive content)
+        if (packet.Value is TReceive content)
         {
             ReceiveContent(packet, content);
         }
