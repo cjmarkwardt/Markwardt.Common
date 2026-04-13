@@ -33,7 +33,7 @@ public class ProtocolConnection<TSend, TReceive> : BaseDisposable, IConnection<T
 
     private void OnProcessorSent(Packet packet)
     {
-        if (packet.Value is DisconnectedSignal signal)
+        if (packet.IsSignal && packet.Value is DisconnectedSignal signal)
         {
             disconnectException = signal.Exception;
             processor.Receive(packet);

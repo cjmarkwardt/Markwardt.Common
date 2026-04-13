@@ -57,11 +57,11 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
     protected void TriggerReceived(Packet packet)
     {
-        if (packet.Value is ConnectedSignal signal)
+        if (packet.IsSignal && packet.Value is ConnectedSignal signal)
         {
             OnConnected();
         }
-        else if (packet.Value is DisconnectedSignal disconnectedSignal)
+        else if (packet.IsSignal && packet.Value is DisconnectedSignal disconnectedSignal)
         {
             OnDisconnected(disconnectedSignal.Exception);
         }

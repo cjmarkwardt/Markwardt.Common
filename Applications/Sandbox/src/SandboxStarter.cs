@@ -15,11 +15,6 @@ public class SandboxStarter : IStarter
 
     public async ValueTask Start(CancellationToken cancellation = default)
     {
-        JsonSerializerOptions serializerOptions = new(JsonSerializerDefaults.Web)
-        {
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault
-        };
-
         IConnectionProtocol<Test, ReadOnlyMemory<byte>> protocol = new ConnectionProtocol<Test>()
             .Configure(packet =>
             {
@@ -27,7 +22,7 @@ public class SandboxStarter : IStarter
                 packet.Reliability = Reliability.Ordered;
             })
             .AsStandardMessages()
-            .AsJson(serializerOptions)
+            .AsJson()
             .AsBytes()
             .WithInterrupts(5)
             .AsProtobuf()
@@ -41,7 +36,7 @@ public class SandboxStarter : IStarter
                     Console.WriteLine($"{name}/Connected");
                     connection.GetReceivedChannels().Subscribe(x =>
                     {
-                        Console.WriteLine($"{name}/Channel {x.Content.Value}");
+                        Console.WriteLine($"{name}/Channel {x.Message.Content.Value}");
                         x.Messages.Subscribe(y => Console.WriteLine($"{name}/Channel {y.Content.Value}"));
                     });
                     onConnected?.Invoke(connection);

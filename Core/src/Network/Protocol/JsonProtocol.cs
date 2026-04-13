@@ -3,7 +3,7 @@ namespace Markwardt.Network;
 public class JsonProtocol<T>(JsonSerializerOptions? options = null) : IConnectionProtocol<T, string>
 {
     public IConnectionProcessor<T, string> CreateProcessor()
-        => new Processor(options ?? new JsonSerializerOptions() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault });
+        => new Processor(options ?? new JsonSerializerOptions(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault });
 
     private sealed class Processor(JsonSerializerOptions options) : ConvertProcessor<T, string>
     {

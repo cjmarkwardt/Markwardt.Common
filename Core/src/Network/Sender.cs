@@ -9,7 +9,7 @@ public interface ISender<T> : ISender;
 
 public static class SenderExtensions
 {
-    public static void Send<T>(this ISender<T> sender, T content, Action<Packet>? configure = null)
+    public static void Send<T>(this ISender<T> sender, T content, Action<Packet<T>>? configure = null)
         => sender.Send(Packet.New(content).Configure(configure));
 }
 

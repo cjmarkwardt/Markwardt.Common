@@ -5,10 +5,10 @@ public static class ChannelProtocolExtensions
     public static IChannelManager? GetChannelManager(this ISender sender)
         => NetworkInterceptor.GetInterceptors(sender).OfType<IChannelManager>().FirstOrDefault();
 
-    public static IObservable<(Packet Message, T Content, IObservable<(Packet Message, T Content)> Messages)> GetReceivedChannels<T>(this ISender<T> sender)
-        => sender.GetChannelManager()?.Received.Select(x => (x.Message, (T)x.Message.Value!, x.Messages.Select(y => (y, (T)y.Value!)))) ?? throw new InvalidOperationException("Sender does not support channels");
+    public static IObservable<(Packet<T> Message, IObservable<Packet<T>> Messages)> GetReceivedChannels<T>(this ISender<T> sender)
+        => sender.GetChannelManager()?.Received.Select(x => (x.Message.As<T>(), x.Messages.Select(y => y.As<T>()))) ?? throw new InvalidOperationException("Sender does not support channels");
 
-    public static IChannel<T> OpenChannel<T>(this ISender<T> sender, T packet, TimeSpan? autoAssertDelay, Action<Packet>? configureMessage = null)
+    public static IChannel<T> OpenChannel<T>(this ISender<T> sender, T packet, TimeSpan? autoAssertDelay, Action<Packet<T>>? configureMessage = null)
         => sender.GetChannelManager()?.OpenChannel(Packet.New(packet).Configure(configureMessage), autoAssertDelay).As<T>() ?? throw new InvalidOperationException("Sender does not support channels");
 
     public static IChannelValue<T> OpenChannelValue<T, TContent>(this ISender<TContent> sender, TimeSpan sendInterval, TContent content, T initialValue, Func<T, TContent> write, TimeSpan? autoAssertDelay)

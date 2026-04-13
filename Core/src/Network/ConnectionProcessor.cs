@@ -45,7 +45,7 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
         => sent.OnNext(packet);
 
     protected void TriggerDisconnect(Exception? exception = null)
-        => TriggerSent(Packet.New(new DisconnectedSignal(exception)));
+        => TriggerSent(Packet.NewSignal<object?>(new DisconnectedSignal(exception)));
 
     protected override void OnDispose()
     {

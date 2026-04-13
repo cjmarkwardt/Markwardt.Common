@@ -33,9 +33,7 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
                 if (content.Type is InterruptHeader.Unit)
                 {
                     SendReceipt();
-
-                    packet.Inner.Value = content.Data;
-                    TriggerReceived(packet);
+                    TriggerReceived(packet.AsContent(content.Data, recycler: packet.Recycler, recycle: false));
                 }
                 else
                 {
@@ -56,9 +54,7 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
                     {
                         incomingSequences.Dequeue();
                         SendReceipt();
-
-                        packet.Inner.Value = sequence.Data;
-                        TriggerReceived(packet);
+                        TriggerReceived(packet.AsContent(sequence.Data, recycler: packet.Recycler, recycle: false));
                     }
                     else
                     {
