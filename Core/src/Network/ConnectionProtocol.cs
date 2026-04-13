@@ -54,7 +54,7 @@ public static class ConnectionProtocolExtensions
     public static IConnectionProtocol<TSend, TReceive> Chain<TSend, TTransport, TReceive>(this IConnectionProtocol<TSend, TTransport> protocol, IConnectionProtocol<TTransport, TReceive> chainProtocol)
         => new ConnectionProtocol<TSend, TReceive>(() => new ChainProcessor<TSend, TTransport, TReceive>(protocol.CreateProcessor(), chainProtocol.CreateProcessor()));
 
-    public static IConnectionProtocol<TSend, TReceive> Configure<TSend, TReceive>(this IConnectionProtocol<TSend, TReceive> protocol, Action<TReceive, Packet> configure)
+    public static IConnectionProtocol<TSend, TReceive> Configure<TSend, TReceive>(this IConnectionProtocol<TSend, TReceive> protocol, Action<Packet<TReceive>> configure)
         => protocol.Chain(new ConfigureProtocol<TReceive>(configure));
 
     public static IConnectionProtocol<TSend, TConverted> Convert<TSend, TReceive, TConverted>(this IConnectionProtocol<TSend, TReceive> protocol, IConverter<TReceive, TConverted> converter)

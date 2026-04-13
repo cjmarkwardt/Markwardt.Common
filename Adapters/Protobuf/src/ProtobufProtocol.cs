@@ -16,19 +16,10 @@ public class ProtobufProtocol<T>(bool prefixLength = true, MemoryPool<byte>? poo
         protected override void SendContent(Packet<T> packet)
         {
             MeasureState<T> measure = Serializer.Measure(packet.Content);
-            Buffer<byte> buffer = prefixWriter.WriteStream(pool, stream => measure.Serialize(stream), (int)measure.Length, prefixLength);
-
-            packet.Inner.Set(buffer.Memory.AsReadOnly(), buffer);
-            TriggerSent(packet);
+            TriggerSent(packet.As<ReadOnlyMemory<byte>>().SetContent(prefixWriter.WriteStream(pool, stream => measure.Serialize(stream), (int)measure.Length, prefixLength)));
         }
 
-        protected override void ReceiveContent(Packet packet, ReadOnlyMemory<byte> content)
-        {
-            content = prefixWriter.ReadData(content, prefixLength);
-            T value = Serializer.Deserialize<T>(content);
-
-            packet.Set(value);
-            TriggerReceived(packet);
-        }
+        protected override void ReceiveContent(Packet<ReadOnlyMemory<byte>> packet)
+            => TriggerReceived(packet.As<T>().SetContent(Serializer.Deserialize<T>(prefixWriter.ReadData(packet.Content, prefixLength))));
     }
 }

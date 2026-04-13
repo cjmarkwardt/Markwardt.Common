@@ -28,11 +28,11 @@ public abstract class HeaderProcessor<T, THeader> : ConnectionProcessor<T>
         TriggerSent(packet);
     }
 
-    protected override void ReceiveContent(Packet packet, T content)
+    protected override void ReceiveContent(Packet<T> packet)
     {
-        if (content.GetHeader().TryGetValue(out THeader header))
+        if (packet.Content.GetHeader().TryGetValue(out THeader header))
         {
-            packet.SetInspect(headerKey, header);
+            packet.Inner.SetInspect(headerKey, header);
         }
 
         TriggerReceived(packet);

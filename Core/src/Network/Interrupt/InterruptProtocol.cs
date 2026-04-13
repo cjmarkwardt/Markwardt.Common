@@ -20,8 +20,9 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
             SendPending();
         }
 
-        protected override void ReceiveContent(Packet packet, InterruptPacket content)
+        protected override void ReceiveContent(Packet<InterruptPacket> packet)
         {
+            InterruptPacket content = packet.Content;
             if (content.Type is InterruptHeader.Receipt)
             {
                 pendingPackets--;
@@ -33,7 +34,7 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
                 {
                     SendReceipt();
 
-                    packet.Value = content.Data;
+                    packet.Inner.Value = content.Data;
                     TriggerReceived(packet);
                 }
                 else
@@ -56,7 +57,7 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
                         incomingSequences.Dequeue();
                         SendReceipt();
 
-                        packet.Value = sequence.Data;
+                        packet.Inner.Value = sequence.Data;
                         TriggerReceived(packet);
                     }
                     else

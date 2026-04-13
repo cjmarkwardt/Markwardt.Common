@@ -21,10 +21,10 @@ public class SandboxStarter : IStarter
         };
 
         IConnectionProtocol<Test, ReadOnlyMemory<byte>> protocol = new ConnectionProtocol<Test>()
-            .Configure((content, message) =>
+            .Configure(packet =>
             {
-                message.Priority = content.Priority;
-                message.Reliability = Reliability.Ordered;
+                packet.Priority = packet.Content.Priority;
+                packet.Reliability = Reliability.Ordered;
             })
             .AsStandardMessages()
             .AsJson(serializerOptions)
@@ -62,7 +62,7 @@ public class SandboxStarter : IStarter
         using IDisposable host = protocol.HostTcp(out int port).Handle(CreateHandler<Test>("Host", x => new($"Replying to {x.Value} from Host")));
 
         int sent = 0;
-        using IDisposable client = protocol.Configure((content, _) => sent += content.Length).ConnectTcp("localhost", port).Handle(CreateHandler<Test>("Client", x => new($"Replying to {x.Value} from Client"), async connection =>
+        using IDisposable client = protocol.Configure(packet => sent += packet.Content.Length).ConnectTcp("localhost", port).Handle(CreateHandler<Test>("Client", x => new($"Replying to {x.Value} from Client"), async connection =>
         {
             connection.Send(new Test("Hello here is a test"));
             connection.Send(new Test("High priority test", 1));

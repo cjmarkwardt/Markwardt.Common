@@ -1,5 +1,11 @@
 namespace Markwardt.Network;
 
+public static class PacketExtensions
+{
+    public static Packet<ReadOnlyMemory<byte>> SetContent(this Packet<ReadOnlyMemory<byte>> packet, Buffer<byte> buffer)
+        => packet.SetContent(buffer.Memory.AsReadOnly(), buffer);
+}
+
 public class Packet : IRecyclable, IPrioritizable, IInspectable
 {
     private static readonly Pool<Packet> pool = new(() => new());
@@ -10,6 +16,9 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
         packet.Set(value, recycler);
         return packet;
     }
+
+    public static Packet<ReadOnlyMemory<T>> FromBuffer<T>(Buffer<T> buffer, int? length = null)
+        => New(buffer.Memory[..(length ?? buffer.Length)].AsReadOnly(), buffer).As<ReadOnlyMemory<T>>();
 
     private Packet() { }
 
@@ -86,6 +95,12 @@ public readonly record struct Packet<T>(Packet Inner)
     public static implicit operator Packet(Packet<T> packet)
         => packet.Inner;
 
+    public static Packet<T> New(T content, IRecyclable? recycler = null)
+        => Packet.New(content, recycler).As<T>();
+
+    public static Packet<T> NewSignal(object signal, IRecyclable? recycler = null)
+        => Packet.New(signal, recycler).As<T>();
+
     public readonly bool CanRespond => Inner.Responder is not null;
 
     public readonly bool IsContent => Inner.Value is T;
@@ -94,21 +109,27 @@ public readonly record struct Packet<T>(Packet Inner)
     public readonly T Content => IsContent ? (T)Inner.Value! : throw new InvalidOperationException("Packet does not contain content of type " + typeof(T).Name);
     public readonly object Signal => IsSignal ? Inner.Value! : throw new InvalidOperationException("Packet does not contain a signal");
 
-    public readonly string? Id { get => Inner.Id; init => Inner.Id = value; }
-    public readonly int Priority { get => Inner.Priority; init => Inner.Priority = value; }
-    public readonly Reliability Reliability { get => Inner.Reliability; init => Inner.Reliability = value; }
-    public readonly IRecyclable? Recycler { get => Inner.Recycler; init => Inner.Recycler = value; }
-    public readonly ISender? Responder { get => Inner.Responder; init => Inner.Responder = value; }
-    public readonly object? Source { get => Inner.Source; init => Inner.Source = value; }
+    public readonly string? Id { get => Inner.Id; set => Inner.Id = value; }
+    public readonly int Priority { get => Inner.Priority; set => Inner.Priority = value; }
+    public readonly Reliability Reliability { get => Inner.Reliability; set => Inner.Reliability = value; }
+    public readonly IRecyclable? Recycler { get => Inner.Recycler; set => Inner.Recycler = value; }
+    public readonly ISender? Responder { get => Inner.Responder; set => Inner.Responder = value; }
+    public readonly object? Source { get => Inner.Source; set => Inner.Source = value; }
 
     public Packet<T2> As<T2>()
         => new(Inner);
 
-    public void SetContent(T value, IRecyclable? recycler = null)
-        => Inner.Set(value, recycler);
+    public Packet<T> SetContent(T value, IRecyclable? recycler = null)
+    {
+        Inner.Set(value, recycler);
+        return this;
+    }
 
-    public void SetSignal(object signal)
-        => Inner.Set(signal);
+    public Packet<T> SetSignal(object signal)
+    {
+        Inner.Set(signal);
+        return this;
+    }
 
     public void Respond(T content, Action<Packet>? configure = null)
         => Inner.Responder.NotNull("Cannot respond when responder is null").Send(Packet.New(content).Configure(configure));

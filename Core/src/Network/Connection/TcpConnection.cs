@@ -138,7 +138,7 @@ internal class TcpConnection : Connection<ReadOnlyMemory<byte>>
                     return;
                 }
 
-                TriggerReceived(Packet.New(buffer.Memory[..read].AsReadOnly(), buffer));
+                TriggerReceived(Packet.FromBuffer(buffer, read));
             }
         }
         catch (EndOfStreamException exception)

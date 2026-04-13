@@ -28,9 +28,9 @@ public class ChainProcessor<TSend, TTransport, TReceive> : ConnectionProcessor<T
     protected override void SendSignal(Packet<TSend> packet)
         => source.Send(packet);
 
-    protected override void ReceiveContent(Packet packet, TReceive content)
+    protected override void ReceiveContent(Packet<TReceive> packet)
         => chain.Receive(packet);
 
-    protected override void ReceiveSignal(Packet packet)
+    protected override void ReceiveSignal(Packet<TReceive> packet)
         => chain.Receive(packet);
 }

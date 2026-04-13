@@ -22,19 +22,20 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
 
     public void Receive(Packet packet)
     {
-        if (packet.Value is TReceive content)
+        Packet<TReceive> typed = packet.As<TReceive>();
+        if (typed.IsContent)
         {
-            ReceiveContent(packet, content);
+            ReceiveContent(typed);
         }
         else
         {
-            ReceiveSignal(packet);
+            ReceiveSignal(typed);
         }
     }
 
-    protected abstract void ReceiveContent(Packet packet, TReceive content);
+    protected abstract void ReceiveContent(Packet<TReceive> packet);
 
-    protected virtual void ReceiveSignal(Packet packet)
+    protected virtual void ReceiveSignal(Packet<TReceive> packet)
         => TriggerReceived(packet);
 
     protected override void SendSignal(Packet<TSend> packet)
@@ -62,9 +63,9 @@ public class ConnectionProcessor<T> : ConnectionProcessor<T, T>
     protected override void SendSignal(Packet<T> packet)
         => TriggerSent(packet);
 
-    protected override void ReceiveContent(Packet packet, T content)
+    protected override void ReceiveContent(Packet<T> packet)
         => TriggerReceived(packet);
 
-    protected override void ReceiveSignal(Packet packet)
+    protected override void ReceiveSignal(Packet<T> packet)
         => TriggerReceived(packet);
 }

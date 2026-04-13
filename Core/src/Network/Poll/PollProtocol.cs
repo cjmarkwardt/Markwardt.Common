@@ -28,11 +28,11 @@ public class PollProtocol<T>(TimeSpan? pollInterval = null, TimeSpan? pollTimeou
 
         private IDisposable? poll;
 
-        protected override void ReceiveContent(Packet packet, T content)
+        protected override void ReceiveContent(Packet<T> packet)
         {
             lastReceived = DateTime.UtcNow;
 
-            if (!content.IsPoll())
+            if (!packet.Content.IsPoll())
             {
                 TriggerReceived(packet);
             }

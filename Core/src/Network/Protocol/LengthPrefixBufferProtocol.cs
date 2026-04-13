@@ -23,8 +23,10 @@ public class LengthPrefixBufferProtocol(MemoryPool<byte>? pool = null) : IConnec
 
         private int? nextLength;
 
-        protected override void ReceiveContent(Packet packet, ReadOnlyMemory<byte> content)
+        protected override void ReceiveContent(Packet<ReadOnlyMemory<byte>> packet)
         {
+            ReadOnlyMemory<byte> content = packet.Content;
+
             while (content.Length > 0)
             {
                 if (nextLength is null)
@@ -56,7 +58,7 @@ public class LengthPrefixBufferProtocol(MemoryPool<byte>? pool = null) : IConnec
                         nextLength = null;
                         nextLengthBuffer.SetLength(0);
 
-                        TriggerReceived(Packet.New(buffer.Memory.AsReadOnly(), buffer));
+                        TriggerReceived(Packet.FromBuffer(buffer));
                     }
                 }
             }

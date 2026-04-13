@@ -8,17 +8,9 @@ public class StringBytesProtocol(Encoding? encoding = null, bool prefixLength = 
     private sealed class Processor(Encoding encoding, bool prefixLength, MemoryPool<byte> pool, ILengthPrefixWriter prefixWriter) : ConnectionProcessor<string, ReadOnlyMemory<byte>>
     {
         protected override void SendContent(Packet<string> packet)
-        {
-            Buffer<byte> buffer = prefixWriter.WriteMemory(pool, encoding.GetByteCount(packet.Content), data => encoding.GetBytes(packet.Content, data.Span), prefixLength);
-            
-            packet.Inner.Set(buffer.Memory.AsReadOnly());
-            TriggerSent(packet);
-        }
+            => TriggerSent(packet.As<ReadOnlyMemory<byte>>().SetContent(prefixWriter.WriteMemory(pool, encoding.GetByteCount(packet.Content), data => encoding.GetBytes(packet.Content, data.Span), prefixLength)));
 
-        protected override void ReceiveContent(Packet packet, ReadOnlyMemory<byte> content)
-        {
-            packet.Set(encoding.GetString(prefixWriter.ReadData(content, prefixLength).Span));
-            TriggerReceived(packet);
-        }
+        protected override void ReceiveContent(Packet<ReadOnlyMemory<byte>> packet)
+            => TriggerReceived(packet.As<string>().SetContent(encoding.GetString(prefixWriter.ReadData(packet.Content, prefixLength).Span)));
     }
 }

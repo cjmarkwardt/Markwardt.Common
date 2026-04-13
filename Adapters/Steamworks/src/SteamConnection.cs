@@ -51,8 +51,7 @@ internal class SteamConnection : Connection<ReadOnlyMemory<byte>>
         {
             void Receive(ReadOnlySpan<byte> data)
             {
-                Buffer<byte> buffer = data.ToBuffer();
-                TriggerReceived(Packet.New(buffer.Memory.AsReadOnly(), buffer));
+                TriggerReceived(Packet.FromBuffer(data.ToBuffer()));
             }
 
             if (!handle.Read(Receive))
