@@ -1,14 +1,19 @@
 namespace Markwardt.Network;
 
-public interface IConnection<T> : IDisposable, ISender<T>
+public interface IConnection<T> : IDisposable
 {
     ConnectionState State { get; }
     Exception? DisconnectException { get; }
     IObservable<Packet<T>> Received { get; }
+
+    void Send(Packet<T> packet);
 }
 
 public static class ConnectionExtensions
 {
+    public static void Send<T>(this IConnection<T> connection, T content, Action<Packet<T>>? configure = null)
+        => connection.Send(Packet.New(content).Configure(configure));
+
     public static IDisposable Handle<T>(this IConnection<T> connection, IConnectionHandler<T> handler)
         => new CompositeDisposable()
         {

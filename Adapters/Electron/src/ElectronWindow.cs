@@ -98,8 +98,8 @@ public class ElectronWindow<T>(string executablePath, string frontendUrl) : IFro
         }
     }
 
-    public void Send(Packet packet)
-        => connection?.Send(packet);
+    public void Send(object? message)
+        => connection?.Send(Packet.New(message).As<T>());
 
     public void Dispose()
     {

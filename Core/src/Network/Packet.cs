@@ -32,7 +32,7 @@ public class Packet : IRecyclable, IPrioritizable, IInspectable
     public int Priority { get; set; }
     public Reliability Reliability { get; set; }
     public IRecyclable? Recycler { get; set; }
-    public ISender? Responder { get; set; }
+    public Action<Packet>? Responder { get; set; }
     public object? Source { get; set; }
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspections;
@@ -135,7 +135,7 @@ public readonly record struct Packet<T>(Packet Inner)
     public readonly int Priority { get => Inner.Priority; set => Inner.Priority = value; }
     public readonly Reliability Reliability { get => Inner.Reliability; set => Inner.Reliability = value; }
     public readonly IRecyclable? Recycler { get => Inner.Recycler; set => Inner.Recycler = value; }
-    public readonly ISender? Responder { get => Inner.Responder; set => Inner.Responder = value; }
+    public readonly Action<Packet>? Responder { get => Inner.Responder; set => Inner.Responder = value; }
     public readonly object? Source { get => Inner.Source; set => Inner.Source = value; }
 
     public Packet<T> Configure(Action<Packet<T>>? configure)
@@ -171,8 +171,11 @@ public readonly record struct Packet<T>(Packet Inner)
     public Packet<T2> AsSignal<T2>(object signal, IRecyclable? recycler = null, bool recycle = true)
         => Inner.AsSignal<T2>(signal, recycler, recycle);
 
+    public void Respond(Packet<T> packet)
+        => Inner.Responder.NotNull("Cannot respond when responder is null").Invoke(packet);
+
     public void Respond(T content, Action<Packet<T>>? configure = null)
-        => Inner.Responder.NotNull("Cannot respond when responder is null").Send(Packet.New(content).Configure(configure));
+        => Respond(Packet.New(content).Configure(configure));
 
     public void Recycle()
         => Inner.Recycle();

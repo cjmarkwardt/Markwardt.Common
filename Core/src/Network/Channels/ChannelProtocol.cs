@@ -2,17 +2,17 @@ namespace Markwardt.Network;
 
 public static class ChannelProtocolExtensions
 {
-    public static IChannelManager? GetChannelManager(this ISender sender)
-        => NetworkInterceptor.GetInterceptors(sender).OfType<IChannelManager>().FirstOrDefault();
+    public static IChannelManager? GetChannelManager<T>(this IConnection<T> connection)
+        => NetworkInterceptor.GetInterceptors(connection).OfType<IChannelManager>().FirstOrDefault();
 
-    public static IObservable<(Packet<T> Message, IObservable<Packet<T>> Messages)> GetReceivedChannels<T>(this ISender<T> sender)
-        => sender.GetChannelManager()?.Received.Select(x => (x.Message.As<T>(), x.Messages.Select(y => y.As<T>()))) ?? throw new InvalidOperationException("Sender does not support channels");
+    public static IObservable<(Packet<T> Message, IObservable<Packet<T>> Messages)> GetReceivedChannels<T>(this IConnection<T> connection)
+        => connection.GetChannelManager()?.Received.Select(x => (x.Message.As<T>(), x.Messages.Select(y => y.As<T>()))) ?? throw new InvalidOperationException("Sender does not support channels");
 
-    public static IChannel<T> OpenChannel<T>(this ISender<T> sender, T packet, TimeSpan? autoAssertDelay, Action<Packet<T>>? configureMessage = null)
-        => sender.GetChannelManager()?.OpenChannel(Packet.New(packet).Configure(configureMessage), autoAssertDelay).As<T>() ?? throw new InvalidOperationException("Sender does not support channels");
+    public static IChannel<T> OpenChannel<T>(this IConnection<T> connection, T packet, TimeSpan? autoAssertDelay, Action<Packet<T>>? configureMessage = null)
+        => connection.GetChannelManager()?.OpenChannel(Packet.New(packet).Configure(configureMessage), autoAssertDelay).As<T>() ?? throw new InvalidOperationException("Sender does not support channels");
 
-    public static IChannelValue<T> OpenChannelValue<T, TContent>(this ISender<TContent> sender, TimeSpan sendInterval, TContent content, T initialValue, Func<T, TContent> write, TimeSpan? autoAssertDelay)
-        => new ChannelValue<T, TContent>(sender.OpenChannel(content, autoAssertDelay), sendInterval, initialValue, write);
+    public static IChannelValue<T> OpenChannelValue<T, TContent>(this IConnection<TContent> connection, TimeSpan sendInterval, TContent content, T initialValue, Func<T, TContent> write, TimeSpan? autoAssertDelay)
+        => new ChannelValue<T, TContent>(connection.OpenChannel(content, autoAssertDelay), sendInterval, initialValue, write);
 }
 
 public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IConnectionProtocol<T, T>
@@ -209,7 +209,7 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IConnecti
 
                     packet.Reliability = reliability;
                     interceptor.processor.SetHeader(packet, new(channel, part, sequence.Value));
-                    interceptor.Sender.Send(packet);
+                    interceptor.Send(packet);
                 }
             }
         }

@@ -1,6 +1,6 @@
 namespace Markwardt;
 
-public interface IFrontendWindow : ISender, IDisposable
+public interface IFrontendWindow : IDisposable, IFrontendSender
 {
     FrontendWindowState State { get; }
 
@@ -11,7 +11,7 @@ public interface IFrontendWindow : ISender, IDisposable
     ValueTask Open(FrontendWindowOpenOptions? options = null);
 }
 
-public interface IFrontendWindow<T> : IFrontendWindow, ISender<T>;
+public interface IFrontendWindow<T> : IFrontendWindow;
 
 public static class FrontendWindowExtensions
 {

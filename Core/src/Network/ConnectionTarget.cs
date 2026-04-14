@@ -20,21 +20,23 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
     IDictionary<IInspectKey, object> IInspectable.Inspections => inspectable.Inspections;
 
-    public void Send(Packet packet)
+    public void Send(Packet<T> packet)
     {
-        Packet<T> typed = packet.As<T>();
-        if (typed.IsContent)
+        if (packet.IsContent)
         {
             if (State is ConnectionState.Connected)
             {
-                SendContent(typed);
+                SendContent(packet);
             }
         }
         else
         {
-            SendSignal(typed);
+            SendSignal(packet);
         }
     }
+
+    void INetworkInterceptable.Send(Packet packet)
+        => Send(packet.As<T>());
 
     protected void ChainInspections(object target)
         => inspectable.ChainInspections(target);

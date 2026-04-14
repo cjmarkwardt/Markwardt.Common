@@ -4,7 +4,7 @@ public interface IConnectionProcessor<TSend, TReceive> : IConnection<TSend>
 {
     IObservable<Packet<TReceive>> Sent { get; }
 
-    void Receive(Packet packet);
+    void Receive(Packet<TReceive> packet);
 }
 
 public static class ConnectionProcessorExtensions
@@ -18,16 +18,15 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
     private readonly BufferSubject<Packet<TReceive>> sent = new();
     public IObservable<Packet<TReceive>> Sent => sent;
 
-    public void Receive(Packet packet)
+    public void Receive(Packet<TReceive> packet)
     {
-        Packet<TReceive> typed = packet.As<TReceive>();
-        if (typed.IsContent)
+        if (packet.IsContent)
         {
-            ReceiveContent(typed);
+            ReceiveContent(packet);
         }
         else
         {
-            ReceiveSignal(typed);
+            ReceiveSignal(packet);
         }
     }
 

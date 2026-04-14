@@ -3,25 +3,27 @@ namespace Markwardt.Network;
 /// <summary> Can capture received network packets instead of them being put into the receive queue. </summary>
 public interface INetworkInterceptor
 {
-    void Attach(ISender sender);
+    void Attach(INetworkInterceptable connection);
 
     /// <returns> Messages that will replace the intercepted packet, or null if no interception occurred. </returns>
-    IEnumerable<Packet>? Intercept(ISender sender, Packet packet);
+    IEnumerable<Packet>? Intercept(INetworkInterceptable connection, Packet packet);
 }
 
 public abstract class NetworkInterceptor : BaseDisposable, INetworkInterceptor
 {
-    public static IEnumerable<INetworkInterceptor> GetInterceptors(ISender sender)
-        => (sender as INetworkInterceptable)?.Interceptors ?? [];
+    public static IEnumerable<INetworkInterceptor> GetInterceptors<T>(IConnection<T> connection)
+        => (connection as INetworkInterceptable)?.Interceptors ?? [];
 
-    private ISender? sender;
-    protected ISender Sender => sender ?? throw new InvalidOperationException("Interceptor is not attached to a sender");
+    private INetworkInterceptable? connection;
 
-    public void Attach(ISender sender)
-        => this.sender = sender;
+    public void Attach(INetworkInterceptable connection)
+        => this.connection = connection;
 
-    public IEnumerable<Packet>? Intercept(ISender sender, Packet packet)
-        => this.sender == sender ? Intercept(packet) : null;
+    public IEnumerable<Packet>? Intercept(INetworkInterceptable connection, Packet packet)
+        => this.connection == connection ? Intercept(packet) : null;
 
     protected abstract IEnumerable<Packet>? Intercept(Packet packet);
+
+    protected void Send(Packet packet)
+        => connection.NotNull("Interceptor is not attached to a connection").Send(packet);
 }

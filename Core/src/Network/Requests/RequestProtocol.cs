@@ -2,12 +2,12 @@ namespace Markwardt.Network;
 
 public static class RequestProtocolExtensions
 {
-    public static IRequestManager? GetRequestManager(this ISender sender)
-        => NetworkInterceptor.GetInterceptors(sender).OfType<IRequestManager>().FirstOrDefault();
+    public static IRequestManager? GetRequestManager<T>(this IConnection<T> connection)
+        => NetworkInterceptor.GetInterceptors(connection).OfType<IRequestManager>().FirstOrDefault();
 
-    public static async ValueTask<T> Request<T>(this ISender<T> sender, T content, TimeSpan? timeout = null, CancellationToken cancellation = default)
+    public static async ValueTask<T> Request<T>(this IConnection<T> connection, T content, TimeSpan? timeout = null, CancellationToken cancellation = default)
     {
-        IRequestManager? requester = sender.GetRequestManager() ?? throw new InvalidOperationException("Sender does not support requests");
+        IRequestManager? requester = connection.GetRequestManager() ?? throw new InvalidOperationException("Sender does not support requests");
         return (await requester.Request(Packet.New(content), timeout, cancellation)).As<T>().Content;
     }
 }
@@ -45,7 +45,7 @@ public class RequestProtocol<T> : IConnectionProtocol<T, T>
                 packet.Reliability = Reliability.Reliable;
                 processor.SetHeader(packet, new(RequestFlow.Request, request.RequestId));
 
-                Sender.Send(packet);
+                Send(packet);
                 return await request.GetResponse(timeout, cancellation);
             }
             
@@ -55,12 +55,12 @@ public class RequestProtocol<T> : IConnectionProtocol<T, T>
                 {
                     if (header.Flow is RequestFlow.Request)
                     {
-                        packet.Responder = new TransformedSender(Sender, response =>
+                        packet.Responder = response =>
                         {
                             response.Reliability = Reliability.Reliable;
                             processor.SetHeader(response, new RequestHeader(RequestFlow.Response, header.Id));
-                            return response;
-                        });
+                            Send(response);
+                        };
 
                         return [packet];
                     }

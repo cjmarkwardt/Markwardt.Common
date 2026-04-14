@@ -9,7 +9,7 @@ public class FailedConnection<T>(Exception? disconnectException) : IConnection<T
 
     public IObservable<Packet<T>> Received => Observable.Never<Packet<T>>().StartWith(Packet.NewSignal<T>(new DisconnectedSignal(disconnectException)));
 
-    public void Send(Packet packet) { }
+    public void Send(Packet<T> packet) { }
 
     public void Dispose() { }
 }
