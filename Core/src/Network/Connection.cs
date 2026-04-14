@@ -1,15 +1,10 @@
 namespace Markwardt.Network;
 
-public interface IConnection : IDisposable, ISender
+public interface IConnection<T> : IDisposable, ISender<T>
 {
     ConnectionState State { get; }
     Exception? DisconnectException { get; }
-    IObservable<Packet> Received { get; }
-}
-
-public interface IConnection<T> : IConnection, ISender<T>
-{
-    new IObservable<Packet<T>> Received => ((IConnection)this).Received.Select(packet => packet.As<T>());
+    IObservable<Packet<T>> Received { get; }
 }
 
 public static class ConnectionExtensions

@@ -6,8 +6,8 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
     protected IInspectable Inspectable => inspectable.Controlled;
 
-    private readonly BufferSubject<Packet> received = new();
-    public IObservable<Packet> Received => received;
+    private readonly BufferSubject<Packet<T>> received = new();
+    public IObservable<Packet<T>> Received => received;
 
     protected virtual IEnumerable<INetworkInterceptor> Interceptors => [];
 
@@ -71,7 +71,7 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
         {
             if (interceptor.Intercept(this, packet) is IEnumerable<Packet> interception)
             {
-                interception.ForEach(received.OnNext);
+                interception.ForEach(x => received.OnNext(x.As<T>()));
                 isIntercepted = true;
                 break;
             }
@@ -79,7 +79,7 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
         if (!isIntercepted)
         {
-            received.OnNext(packet);
+            received.OnNext(packet.As<T>());
         }
     }
 

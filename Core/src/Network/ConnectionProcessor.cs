@@ -1,13 +1,11 @@
 namespace Markwardt.Network;
 
-public interface IConnectionProcessor : IConnection
+public interface IConnectionProcessor<TSend, TReceive> : IConnection<TSend>
 {
-    IObservable<Packet> Sent { get; }
+    IObservable<Packet<TReceive>> Sent { get; }
 
     void Receive(Packet packet);
 }
-
-public interface IConnectionProcessor<TSend, TReceive> : IConnectionProcessor, IConnection<TSend>;
 
 public static class ConnectionProcessorExtensions
 {
@@ -17,8 +15,8 @@ public static class ConnectionProcessorExtensions
 
 public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TSend>, IConnectionProcessor<TSend, TReceive>
 {
-    private readonly BufferSubject<Packet> sent = new();
-    public IObservable<Packet> Sent => sent;
+    private readonly BufferSubject<Packet<TReceive>> sent = new();
+    public IObservable<Packet<TReceive>> Sent => sent;
 
     public void Receive(Packet packet)
     {
@@ -42,10 +40,10 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
         => TriggerSent(packet);
 
     protected void TriggerSent(Packet packet)
-        => sent.OnNext(packet);
+        => sent.OnNext(packet.As<TReceive>());
 
     protected void TriggerDisconnect(Exception? exception = null)
-        => TriggerSent(Packet.NewSignal<object?>(new DisconnectedSignal(exception)));
+        => TriggerSent(Packet.NewSignal<TReceive>(new DisconnectedSignal(exception)));
 
     protected override void OnDispose()
     {
