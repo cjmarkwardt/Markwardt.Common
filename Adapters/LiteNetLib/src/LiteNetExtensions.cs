@@ -21,7 +21,7 @@ public static class LiteNetExtensions
         packet.Recycle();
     }
 
-    internal static Packet ToMessage(this NetPacketReader reader)
+    internal static Packet<ReadOnlyMemory<byte>> ToMessage(this NetPacketReader reader)
         => Packet.New(reader.RawData.AsMemory(reader.UserDataOffset, reader.UserDataSize).AsReadOnly(), Recycler.New(reader, static x => x.Recycle()));
 
     internal static async ValueTask Listen(this NetManager network, CancellationToken cancellation)

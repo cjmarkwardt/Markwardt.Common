@@ -1,13 +1,29 @@
 namespace Markwardt;
 
-public delegate int CapacityGrower(int oldCapacity, int newLength);
-
-public class MemoryBufferStream<T>(Buffer<T> buffer) : IRecyclable
+public class MemoryBufferStream<T> : IRecyclable
 {
+    private static readonly Pool<MemoryBufferStream<T>> pool = new(() => new());
+
+    public static MemoryBufferStream<T> New(Buffer<T> buffer)
+    {
+        MemoryBufferStream<T> stream = pool.Get();
+        stream.Buffer = buffer;
+        return stream;
+    }
+
+    public static MemoryBufferStream<T> New(MemoryPool<T>? pool = null, int? minCapacity = null)
+        => New(Buffer<T>.New(pool, minCapacity));
+
+    public MemoryBufferStream(Buffer<T> buffer)
+        => this.buffer = buffer;
+
     public MemoryBufferStream(MemoryPool<T>? pool = null, int? minCapacity = null)
         : this(Buffer<T>.New(pool, minCapacity)) { }
 
-    private Buffer<T> buffer = buffer;
+    private MemoryBufferStream()
+        => buffer = default!;
+
+    private Buffer<T> buffer;
     public Buffer<T> Buffer
     {
         get => buffer;
@@ -93,15 +109,38 @@ public class MemoryBufferStream<T>(Buffer<T> buffer) : IRecyclable
         => Memory.Slice(Position, count);
 
     public void Recycle()
-        => Buffer.Recycle();
+    {
+        buffer.Recycle();
+        buffer = default!;
+        
+        pool.Recycle(this);
+    }
 }
 
-public class MemoryBufferStream(Buffer<byte> buffer) : Stream, IRecyclable
+public class MemoryBufferStream : Stream, IRecyclable
 {
+    private static readonly Pool<MemoryBufferStream> pool = new(() => new());
+
+    public static MemoryBufferStream New(Buffer<byte> buffer)
+    {
+        MemoryBufferStream stream = pool.Get();
+        stream.stream = MemoryBufferStream<byte>.New(buffer);
+        return stream;
+    }
+
+    public static MemoryBufferStream New(MemoryPool<byte>? pool = null, int? minCapacity = null)
+        => New(Buffer<byte>.New(pool, minCapacity));
+
+    public MemoryBufferStream(Buffer<byte> buffer)
+        => stream = MemoryBufferStream<byte>.New(buffer);
+
     public MemoryBufferStream(MemoryPool<byte>? pool = null, int? minCapacity = null)
         : this(pool.NewBuffer(minCapacity)) { }
 
-    private readonly MemoryBufferStream<byte> stream = new(buffer);
+    private MemoryBufferStream()
+        => stream = default!;
+
+    private MemoryBufferStream<byte> stream;
 
     public override bool CanRead => true;
     public override bool CanSeek => true;
@@ -130,5 +169,10 @@ public class MemoryBufferStream(Buffer<byte> buffer) : Stream, IRecyclable
         => stream.Write(buffer.AsSpan(offset, count));
 
     public void Recycle()
-        => stream.Recycle();
+    {
+        stream.Recycle();
+        stream = default!;
+
+        pool.Recycle(this);
+    }
 }

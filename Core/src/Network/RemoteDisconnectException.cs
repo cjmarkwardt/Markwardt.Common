@@ -1,6 +1,6 @@
 namespace Markwardt.Network;
 
-public class RemoteDisconnectException(string packet, Exception? innerException = null) : Exception(packet, innerException)
+public class RemoteDisconnectException(string message, Exception? innerException = null) : Exception(message, innerException)
 {
     public RemoteDisconnectException()
         : this("Lost remote connection") { }

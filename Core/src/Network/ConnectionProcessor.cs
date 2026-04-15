@@ -33,13 +33,13 @@ public abstract class ConnectionProcessor<TSend, TReceive> : ConnectionTarget<TS
     protected abstract void ReceiveContent(Packet<TReceive> packet);
 
     protected virtual void ReceiveSignal(Packet<TReceive> packet)
-        => TriggerReceived(packet);
+        => TriggerReceived(packet.As<TSend>());
 
     protected override void SendSignal(Packet<TSend> packet)
-        => TriggerSent(packet);
+        => TriggerSent(packet.As<TReceive>());
 
-    protected void TriggerSent(Packet packet)
-        => sent.OnNext(packet.As<TReceive>());
+    protected void TriggerSent(Packet<TReceive> packet)
+        => sent.OnNext(packet);
 
     protected void TriggerDisconnect(Exception? exception = null)
         => TriggerSent(Packet.NewSignal<TReceive>(new DisconnectedSignal(exception)));

@@ -6,6 +6,16 @@ public static class Recycler
         => Recycler<T>.New(state, recycle);
 }
 
+public static class RecyclerExtensions
+{
+    public static IRecyclable AppendRecycle<T>(this IRecyclable recyclable, T state, Action<T> recycle)
+        => Recycler.New((recyclable, state, recycle), static x =>
+        {
+            x.recycle(x.state);
+            x.recyclable.Recycle();
+        });
+}
+
 public class Recycler<T> : IRecyclable
 {
     private readonly static Pool<Recycler<T>> pool = new(() => new());

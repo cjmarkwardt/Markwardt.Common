@@ -46,7 +46,7 @@ public abstract class Connection<T> : ConnectionTarget<T>
     {
         if (State is ConnectionState.Connecting)
         {
-            TriggerReceived(Packet.NewSignal<object?>(ConnectedSignal.Instance));
+            TriggerReceived(Packet.NewSignal<T>(ConnectedSignal.Instance));
         }
     }
 
@@ -54,7 +54,7 @@ public abstract class Connection<T> : ConnectionTarget<T>
     {
         if (State is not ConnectionState.Disconnected)
         {
-            TriggerReceived(Packet.NewSignal<object?>(new DisconnectedSignal(exception)));
+            TriggerReceived(Packet.NewSignal<T>(new DisconnectedSignal(exception)));
         }
     }
 

@@ -64,12 +64,12 @@ public class SandboxStarter : IStarter
             connection.Send(new Test("Max priority", 2));
             Console.WriteLine((await connection.Request(new Test("REQUEST"))).Value);
             connection.Send(new Test("Another test"));
-            IChannelValue<int> value = connection.OpenChannelValue(TimeSpan.FromSeconds(0.1), new("HAIL"), 0, x => new(x.ToString()), TimeSpan.FromSeconds(1));
+            IChannelValue<int> value = connection.OpenChannelValue(TimeSpan.FromSeconds(1), new("HAIL"), 0, x => new(x.ToString()), TimeSpan.FromSeconds(2));
             value.Value = 2;
             value.Value = 3;
             Console.WriteLine(sent);
 
-            await Task.Delay(3000);
+            await Task.Delay(5000);
 
             connection.Dispose();
         }));

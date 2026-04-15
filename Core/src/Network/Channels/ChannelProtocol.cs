@@ -63,7 +63,7 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IConnecti
             {
                 OutputChannel channel = new(this, channelIds.Next(), autoAssertDelay);
                 outputs.Add(channel.Id, channel);
-                channel.SendOpen(channel.Id, packet);
+                channel.SendOpen(packet);
                 return channel;
             }
 
@@ -129,69 +129,57 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IConnecti
                 }
             }
 
-            private sealed class OutputChannel : BaseDisposable, IChannel
+            private sealed class OutputChannel(Interceptor interceptor, int id, TimeSpan? autoAssertDelay) : BaseDisposable, IChannel
             {
-                public OutputChannel(Interceptor interceptor, int id, TimeSpan? autoAssertDelay)
-                {
-                    this.interceptor = interceptor;
-                    this.id = id;
-                    AutoAssertDelay = autoAssertDelay;
-                    Asserter = new Sender(packet => SendAssert(id, packet));
-                }
-
-                private readonly Interceptor interceptor;
-                private readonly int id;
-
                 private int? sequence;
                 private Packet? pendingMessage;
                 private DateTime lastAssert;
 
                 public bool IsPending => pendingMessage is not null;
 
-                public TimeSpan? AutoAssertDelay { get; set; }
+                public TimeSpan? AutoAssertDelay { get; set; } = autoAssertDelay;
 
                 public int Id => id;
                 public bool NeedsAutoAssert => IsPending && AutoAssertDelay.HasValue && DateTime.UtcNow >= lastAssert + AutoAssertDelay.Value;
 
-                public ISender Asserter { get; }
+                public void Send(Packet packet)
+                {
+                    pendingMessage?.Recycle();
+                    pendingMessage = packet;
 
-                ISender IChannel.Asserter => Asserter;
+                    SendData(packet);
+                }
+
+                public void Assert(Packet packet)
+                    => SendAssert(packet);
 
                 public void Assert()
                 {
                     if (pendingMessage is not null)
                     {
-                        Asserter.Send(pendingMessage);
+                        Assert(pendingMessage);
                     }
                 }
 
-                public void SendOpen(int channel, Packet packet)
-                    => Send(channel, ChannelPart.Open, Reliability.Ordered, packet);
+                public void SendOpen(Packet packet)
+                    => Send(id, ChannelPart.Open, Reliability.Ordered, packet);
 
-                public void SendData(int channel, Packet packet)
+                public void SendData(Packet packet)
                 {
                     packet = packet.Copy();
                     packet.Recycler = null;
-                    Send(channel, ChannelPart.Data, Reliability.Unreliable, packet);
+                    Send(id, ChannelPart.Data, Reliability.Unreliable, packet);
                 }
 
-                public void SendAssert(int channel, Packet packet)
+                public void SendAssert(Packet packet)
                 {
                     lastAssert = DateTime.UtcNow;
                     pendingMessage = null;
-                    Send(channel, ChannelPart.Data, Reliability.Reliable, packet);
+                    Send(id, ChannelPart.Data, Reliability.Reliable, packet);
                 }
 
-                public void SendClose(int channel)
-                    => Send(channel, ChannelPart.Close, Reliability.Ordered, Packet.New(T.New()));
-
-                void ISender.Send(Packet packet)
-                {
-                    pendingMessage?.Recycle();
-                    pendingMessage = packet;
-
-                    SendData(id, packet);
-                }
+                public void SendClose()
+                    => Send(id, ChannelPart.Close, Reliability.Ordered, Packet.New(T.New()));
 
                 protected override void OnDispose()
                 {
@@ -200,7 +188,7 @@ public class ChannelProtocol<T>(IValueWindow? sequenceWindow = null) : IConnecti
                     interceptor.channelIds.Release(id);
                     interceptor.outputs.Remove(id);
 
-                    SendClose(id);
+                    SendClose();
                 }
 
                 private void Send(int channel, ChannelPart part, Reliability reliability, Packet packet)

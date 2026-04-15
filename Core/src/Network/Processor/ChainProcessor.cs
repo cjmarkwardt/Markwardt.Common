@@ -13,8 +13,8 @@ public class ChainProcessor<TSend, TTransport, TReceive> : ConnectionProcessor<T
         source.Sent.Subscribe(chain.Send);
         chain.Received.Subscribe(source.Receive);
 
-        source.Received.Select(x => x.Inner).Subscribe(TriggerReceived);
-        chain.Sent.Subscribe(x => TriggerSent(x));
+        source.Received.Subscribe(TriggerReceived);
+        chain.Sent.Subscribe(TriggerSent);
     }
 
     private readonly IConnectionProcessor<TSend, TTransport> source;

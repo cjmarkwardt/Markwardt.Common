@@ -46,7 +46,7 @@ public class ChannelValue<T, TContent> : BaseDisposable, IChannelValue<T>
         {
             this.value = value;
             isChanged = false;
-            channel.Asserter.Send(write(value));
+            channel.Assert(write(value));
         }
     }
 
@@ -55,7 +55,11 @@ public class ChannelValue<T, TContent> : BaseDisposable, IChannelValue<T>
         if (isChanged)
         {
             isChanged = false;
-            channel.Asserter.Send(write(value));
+            channel.Assert(write(value));
+        }
+        else
+        {
+            channel.Assert();
         }
     }
 

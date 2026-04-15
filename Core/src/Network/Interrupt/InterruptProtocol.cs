@@ -16,50 +16,49 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
 
         protected override void SendContent(Packet<ReadOnlyMemory<byte>> packet)
         {
-            outgoingSequences.Add(new OutgoingSequence(packet, packet.Content, packetSize));
+            outgoingSequences.Add(OutgoingSequence.New(packet, packetSize));
             SendPending();
         }
 
         protected override void ReceiveContent(Packet<InterruptPacket> packet)
         {
-            InterruptPacket content = packet.Content;
-            if (content.Type is InterruptHeader.Receipt)
+            InterruptHeader header = packet.Content.Type;
+            if (header is InterruptHeader.Receipt)
             {
+                packet.Recycle();
                 pendingPackets--;
                 SendPending();
             }
+            else if (header is InterruptHeader.Unit)
+            {
+                SendReceipt();
+                TriggerReceived(packet.AsContent(packet.Content.Data, packet.Recycler, false));
+            }
             else
             {
-                if (content.Type is InterruptHeader.Unit)
+                IncomingSequence sequence;
+                if (header is InterruptHeader.Start)
                 {
-                    SendReceipt();
-                    TriggerReceived(packet.AsContent(content.Data, recycler: packet.Recycler, recycle: false));
+                    sequence = IncomingSequence.New(packet.Content.Priority);
+                    incomingSequences.Add(sequence);
                 }
                 else
                 {
-                    IncomingSequence sequence;
-                    if (content.Type is InterruptHeader.Start)
-                    {
-                        sequence = new(content.Priority);
-                        incomingSequences.Add(sequence);
-                    }
-                    else
-                    {
-                        sequence = incomingSequences.Peek(content.Priority).Value;
-                    }
+                    sequence = incomingSequences.Peek(packet.Content.Priority).Value;
+                }
 
-                    sequence.WritePacket(content.Data.Span);
+                sequence.WritePacket(packet.Content.Data.Span);
 
-                    if (content.Type is InterruptHeader.End)
-                    {
-                        incomingSequences.Dequeue();
-                        SendReceipt();
-                        TriggerReceived(packet.AsContent(sequence.Data, recycler: packet.Recycler, recycle: false));
-                    }
-                    else
-                    {
-                        SendReceipt();
-                    }
+                if (header is InterruptHeader.End)
+                {
+                    incomingSequences.Dequeue();
+                    SendReceipt();
+                    TriggerReceived(packet.AsContent(sequence.Data, packet.Recycler?.AppendRecycle(sequence, static sequence => sequence.Recycle()), false));
+                }
+                else
+                {
+                    packet.Recycle();
+                    SendReceipt();
                 }
             }
         }
@@ -74,6 +73,7 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
                 if (sequence.IsCompleted)
                 {
                     outgoingSequences.Remove(sequence);
+                    sequence.Recycle();
                 }
                 else
                 {
@@ -83,26 +83,64 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
             }
         }
 
-        private sealed class IncomingSequence(int priority) : IPrioritizable
+        private sealed class IncomingSequence : IPrioritizable, IRecyclable
         {
-            private readonly MemoryBufferStream buffer = new();
+            private static readonly Pool<IncomingSequence> pool = new(() => new());
 
-            public int Priority => priority;
+            public static IncomingSequence New(int priority)
+            {
+                IncomingSequence sequence = pool.Get();
+                sequence.buffer = MemoryBufferStream.New();
+                sequence.Priority = priority;
+                return sequence;
+            }
+
+            private IncomingSequence()
+                => buffer = default!;
+
+            private MemoryBufferStream buffer;
+
+            public int Priority { get; private set; }
+
             public ReadOnlyMemory<byte> Data => buffer.Memory;
 
             public void WritePacket(ReadOnlySpan<byte> data)
                 => buffer.Write(data);
+
+            public void Recycle()
+            {
+                buffer.Recycle();
+                buffer = default!;
+
+                pool.Recycle(this);
+            }
         }
 
-        private sealed class OutgoingSequence(Packet packet, ReadOnlyMemory<byte> content, int packetSize) : BaseDisposable, IPrioritizable
+        private sealed class OutgoingSequence : IPrioritizable, IRecyclable
         {
+            private static readonly Pool<OutgoingSequence> pool = new(() => new());
+
+            public static OutgoingSequence New(Packet<ReadOnlyMemory<byte>> packet, int packetSize)
+            {
+                OutgoingSequence sequence = pool.Get();
+                sequence.packet = packet;
+                sequence.packetSize = packetSize;
+                return sequence;
+            }
+
+            private OutgoingSequence()
+                => packet = default!;
+
+            private Packet<ReadOnlyMemory<byte>> packet;
+            private int packetSize;
+        
             private int index = -1;
 
             public int Priority => packet.Priority;
 
-            public bool IsCompleted => index == content.Length;
+            public bool IsCompleted => index == packet.Content.Length;
 
-            public Packet GetNextPacket()
+            public Packet<InterruptPacket> GetNextPacket()
             {
                 if (IsCompleted)
                 {
@@ -114,17 +152,23 @@ public class InterruptProtocol(int packetSize) : IConnectionProtocol<ReadOnlyMem
                     index = 0;
                 }
 
-                int size = Math.Min(packetSize, content.Length - index);
+                int size = Math.Min(packetSize, packet.Content.Length - index);
                 bool isStart = index == 0;
-                bool isEnd = index + size >= content.Length;
-                ReadOnlyMemory<byte> data = content.Slice(index, size);
+                bool isEnd = index + size >= packet.Content.Length;
+                ReadOnlyMemory<byte> data = packet.Content.Slice(index, size);
                 index += size;
 
-                Packet packet = Packet.New(InterruptPacket.FromData(isStart, isEnd, Priority, data));
-                packet.CopyInspects(packet);
-                packet.Reliability = Reliability.Ordered;
+                Packet<InterruptPacket> output = packet.Copy().AsContent(InterruptPacket.FromData(isStart, isEnd, Priority, data), recycle: false);
+                output.Reliability = Reliability.Ordered;
+                return output;
+            }
 
-                return packet;
+            public void Recycle()
+            {
+                packet.Recycle();
+                packet = default!;
+
+                pool.Recycle(this);
             }
         }
     }

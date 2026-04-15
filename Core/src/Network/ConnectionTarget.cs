@@ -57,13 +57,13 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
         DisconnectException = exception;
     }
 
-    protected void TriggerReceived(Packet packet)
+    protected void TriggerReceived(Packet<T> packet)
     {
-        if (packet.IsSignal && packet.Value is ConnectedSignal signal)
+        if (packet.IsSignal && packet.Signal is ConnectedSignal signal)
         {
             OnConnected();
         }
-        else if (packet.IsSignal && packet.Value is DisconnectedSignal disconnectedSignal)
+        else if (packet.IsSignal && packet.Signal is DisconnectedSignal disconnectedSignal)
         {
             OnDisconnected(disconnectedSignal.Exception);
         }
@@ -81,7 +81,7 @@ public abstract class ConnectionTarget<T> : BaseDisposable, IConnection<T>, INet
 
         if (!isIntercepted)
         {
-            received.OnNext(packet.As<T>());
+            received.OnNext(packet);
         }
     }
 
